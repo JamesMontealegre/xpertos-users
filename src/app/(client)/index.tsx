@@ -42,6 +42,7 @@ export default function MyServicesScreen() {
 
   return (
     <Screen
+      brand
       title="Mis servicios"
       subtitle="Sigue el estado de tus solicitudes"
       refreshing={refreshing}

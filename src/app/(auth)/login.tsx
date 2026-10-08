@@ -38,7 +38,7 @@ export default function LoginScreen() {
   return (
     <Screen>
       <View style={styles.wrapper}>
-        <Brand tagline="Expertos de confianza para tu hogar y tu obra" />
+        <Brand />
         <Card style={styles.card}>
           <Text style={styles.title}>Ingresar</Text>
           <ErrorBanner message={error} />

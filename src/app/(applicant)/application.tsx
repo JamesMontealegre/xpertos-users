@@ -269,6 +269,7 @@ export default function ApplicationScreen() {
 
   return (
     <Screen
+      brand
       title="Mi postulación"
       subtitle="Completa tu información y sube tus documentos"
       refreshing={refreshing}

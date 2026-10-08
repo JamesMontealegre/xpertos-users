@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Logo } from '@/components/logo';
 import { colors, maxContentWidth, spacing } from '@/constants/theme';
 
 type Props = {
@@ -23,13 +24,16 @@ type Props = {
   plain?: boolean;
   /** Añade espacio inferior para la barra de pestañas. */
   withTabs?: boolean;
+  /** Muestra el logo de Xpertos sobre el título (pantallas de inicio de cada rol). */
+  brand?: boolean;
 };
 
-export function Screen({ children, title, subtitle, refreshing = false, onRefresh, plain, withTabs }: Props) {
+export function Screen({ children, title, subtitle, refreshing = false, onRefresh, plain, withTabs, brand }: Props) {
   const insets = useSafeAreaInsets();
   const header =
     title || subtitle ? (
       <View style={styles.header}>
+        {brand ? <Logo variant="horizontal" width={180} style={styles.brand} /> : null}
         {title ? <Text style={styles.title}>{title}</Text> : null}
         {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
       </View>
@@ -115,6 +119,7 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     marginBottom: spacing.xs,
   },
+  brand: { marginBottom: spacing.sm },
   title: {
     fontSize: 28,
     fontWeight: '800',
