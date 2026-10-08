@@ -17,8 +17,11 @@ import {
   applicationStatus,
   availableDocumentKinds,
   documentKindLabel,
+  isValidNequi,
   missingDocumentKinds,
   nextDocumentKind,
+  payoutMethodLabel,
+  payoutMethods,
 } from '@/lib/labels';
 import { supabase } from '@/lib/supabase';
 import { safeFileName, signedUrl, timestamp, uploadFile } from '@/lib/upload';
@@ -54,6 +57,8 @@ export default function ApplicationScreen() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [nequiNumber, setNequiNumber] = useState('');
+  const [savingPayout, setSavingPayout] = useState(false);
 
   useEffect(() => {
     supabase
@@ -85,6 +90,7 @@ export default function ApplicationScreen() {
     if (data) {
       // Postulación creada al registrarse (o desde la landing) sin datos: abrir el formulario directamente.
       if (data.category_ids.length === 0 && (data.status === 'pending' || data.status === 'needs_info')) setEditing(true);
+      setNequiNumber(data.payout_method === 'nequi' ? (data.payout_account ?? '') : '');
       setForm({
         phone: data.phone ?? '',
         city: data.city ?? '',
@@ -155,16 +161,57 @@ export default function ApplicationScreen() {
   };
 
   // Los tipos únicos ya cargados salen del listado; si la selección dejó de estar disponible
-  // (p. ej. recién cargada), se sugiere el siguiente tipo pendiente.
+  // (p. ej. recién cargada), se sugiere el siguiente tipo pendiente. Los requeridos dependen del
+  // medio de pago: la certificación bancaria solo es requerida con cuenta bancaria.
+  const payoutMethod = application?.payout_method ?? null;
   const uploadedKinds = documents.map((d) => d.kind);
-  const kindOptions = availableDocumentKinds(uploadedKinds).map((k) => ({
+  const kindOptions = availableDocumentKinds(uploadedKinds, payoutMethod).map((k) => ({
     value: k.value,
     label: k.label,
     badge: k.required ? 'Requerido' : undefined,
   }));
   const selectedKind =
-    docKind && kindOptions.some((k) => k.value === docKind) ? docKind : nextDocumentKind(uploadedKinds, null);
-  const missingKinds = missingDocumentKinds(uploadedKinds);
+    docKind && kindOptions.some((k) => k.value === docKind) ? docKind : nextDocumentKind(uploadedKinds, null, payoutMethod);
+  const missingKinds = missingDocumentKinds(uploadedKinds, payoutMethod);
+  const missingPayout = !payoutMethod
+    ? 'Medio de pago'
+    : payoutMethod === 'nequi' && !application?.payout_account
+      ? 'Número Nequi'
+      : null;
+  const pendingLabels = [...(missingPayout ? [missingPayout] : []), ...missingKinds.map((k) => k.label)];
+
+  const savePayout = async (method: Enums<'payout_method'>, account: string | null) => {
+    if (!application) return;
+    setError(null);
+    setNotice(null);
+    setSavingPayout(true);
+    const { error: updateError } = await supabase
+      .from('expert_applications')
+      .update({ payout_method: method, payout_account: account })
+      .eq('id', application.id);
+    setSavingPayout(false);
+    if (updateError) return setError(`No pudimos guardar tu medio de pago: ${updateError.message}`);
+    setApplication({ ...application, payout_method: method, payout_account: account });
+    setDocKind(null);
+    setNotice(
+      method === 'bank_account'
+        ? 'Medio de pago guardado. Sube tu certificación bancaria: ahora es un documento requerido.'
+        : method === 'nequi' && !account
+          ? 'Medio de pago guardado. Escribe tu número Nequi.'
+          : 'Medio de pago guardado.'
+    );
+  };
+
+  const changePayoutMethod = (method: Enums<'payout_method'>) => {
+    if (method === application?.payout_method) return;
+    const account = method === 'nequi' && isValidNequi(nequiNumber) ? nequiNumber.replace(/\D/g, '') : null;
+    savePayout(method, account);
+  };
+
+  const saveNequi = () => {
+    if (!isValidNequi(nequiNumber)) return setError('El número Nequi debe ser un celular de 10 dígitos que empiece por 3.');
+    savePayout('nequi', nequiNumber.replace(/\D/g, ''));
+  };
 
   const pickDocument = async () => {
     if (!session || !application) return;
@@ -190,7 +237,7 @@ export default function ApplicationScreen() {
         mime_type: asset.mimeType ?? null,
       });
       if (insertError) throw new Error(insertError.message);
-      setDocKind(nextDocumentKind([...uploadedKinds, kind], kind));
+      setDocKind(nextDocumentKind([...uploadedKinds, kind], kind, payoutMethod));
       setNotice(`${documentKindLabel(kind)}: documento agregado.`);
       await load();
     } catch (e) {
@@ -270,8 +317,55 @@ export default function ApplicationScreen() {
           <SectionTitle>Documentos</SectionTitle>
           <Card style={styles.card}>
             <Text style={styles.help}>
-              Requeridos: cédula por ambos lados, planilla de seguridad social y ARL, foto 3x4 con fondo blanco y carta de recomendación de tu último trabajo. Opcionales: RUT, antecedentes, certificados y portafolio (imagen o PDF, máx. 10 MB).
+              Requeridos: cédula por ambos lados, planilla de seguridad social y ARL, foto 3x4 con fondo blanco, carta de recomendación de tu último trabajo y, si eliges recibir tus pagos en cuenta bancaria, la certificación bancaria. Opcionales: RUT, antecedentes, certificados y portafolio (imagen o PDF, máx. 10 MB).
             </Text>
+            <View style={styles.payoutBox}>
+              {canEdit ? (
+                <>
+                  <Select
+                    label="¿Cómo quieres recibir tus pagos?"
+                    placeholder="Elige un medio de pago"
+                    options={payoutMethods.map((m) => ({ value: m.value, label: m.label, description: m.description }))}
+                    value={payoutMethod}
+                    onChange={changePayoutMethod}
+                    disabled={savingPayout}
+                    error={!payoutMethod ? 'Requerido: elige cómo quieres recibir tus pagos.' : null}
+                  />
+                  {payoutMethod === 'nequi' ? (
+                    <View style={styles.nequiRow}>
+                      <Input
+                        label="Número Nequi"
+                        value={nequiNumber}
+                        onChangeText={(v) => setNequiNumber(v.replace(/[^0-9 ]/g, ''))}
+                        keyboardType="phone-pad"
+                        placeholder="300 000 0000"
+                        containerStyle={styles.nequiInput}
+                        hint={application.payout_account ? `Guardado: ${application.payout_account}` : 'Requerido para pagarte por Nequi.'}
+                      />
+                      <Button
+                        title="Guardar número"
+                        variant="outline"
+                        size="sm"
+                        onPress={saveNequi}
+                        loading={savingPayout}
+                        disabled={nequiNumber.replace(/\D/g, '') === (application.payout_account ?? '')}
+                      />
+                    </View>
+                  ) : null}
+                  {payoutMethod === 'efecty' ? (
+                    <InfoBanner message={`Te pagaremos en Puntos Efecty a nombre de ${application.full_name || 'ti'}, con tu número de cédula. Lleva tu documento para retirar.`} />
+                  ) : null}
+                  {payoutMethod === 'bank_account' ? (
+                    <Text style={styles.help}>La cuenta debe estar a tu nombre. Sube la certificación bancaria en los documentos.</Text>
+                  ) : null}
+                </>
+              ) : (
+                <KeyValue
+                  label="Medio de pago"
+                  value={`${payoutMethodLabel(payoutMethod)}${application.payout_account ? ` · ${application.payout_account}` : ''}`}
+                />
+              )}
+            </View>
             {documents.length === 0 ? (
               <Text style={styles.muted}>Aún no has subido documentos.</Text>
             ) : (
@@ -298,10 +392,10 @@ export default function ApplicationScreen() {
             )}
             {canEdit ? (
               <>
-                {missingKinds.length > 0 ? (
+                {pendingLabels.length > 0 ? (
                   <Text style={styles.help}>
                     <Text style={styles.pendingLabel}>Requeridos pendientes: </Text>
-                    {missingKinds.map((k) => k.label).join(', ')}.
+                    {pendingLabels.join(', ')}.
                   </Text>
                 ) : (
                   <InfoBanner
@@ -379,4 +473,14 @@ const styles = StyleSheet.create({
   docKind: { fontSize: 14, fontWeight: '600', color: colors.text },
   pendingLabel: { fontWeight: '600', color: colors.text },
   docName: { fontSize: 13, color: colors.textMuted },
+  payoutBox: {
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    padding: spacing.md,
+    backgroundColor: colors.background,
+  },
+  nequiRow: { gap: spacing.xs },
+  nequiInput: { flexGrow: 1 },
 });

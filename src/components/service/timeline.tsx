@@ -2,15 +2,28 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { Card, SectionTitle } from '@/components/ui/card';
 import { colors, spacing } from '@/constants/theme';
-import type { Tables } from '@/lib/database.types';
-import { formatDateTime } from '@/lib/format';
-import { eventLabels, serviceStatus } from '@/lib/labels';
+import type { Enums, Tables } from '@/lib/database.types';
+import { formatCOP, formatDateTime } from '@/lib/format';
+import { eventLabels, payoutFrequencyLabel, serviceStatus } from '@/lib/labels';
 
 function describe(event: Tables<'service_events'>): string {
-  if (event.type === 'status_change' && event.from_status && event.to_status) {
-    return `${serviceStatus[event.from_status].label} → ${serviceStatus[event.to_status].label}`;
-  }
   const payload = (event.payload ?? {}) as Record<string, unknown>;
+  if (event.type === 'status_change' && event.from_status && event.to_status) {
+    const change = `${serviceStatus[event.from_status].label} → ${serviceStatus[event.to_status].label}`;
+    return typeof payload.reason === 'string' && payload.reason ? `${change}. Motivo: ${payload.reason}` : change;
+  }
+  if (event.type === 'quote_returned' && typeof payload.notes === 'string') {
+    return payload.notes;
+  }
+  if (event.type === 'quote_approved' && payload.total != null) {
+    return `Total ${formatCOP(Number(payload.total))}`;
+  }
+  if (event.type === 'payout_frequency_set' && typeof payload.frequency === 'string') {
+    return payoutFrequencyLabel(payload.frequency as Enums<'payout_frequency'>);
+  }
+  if (event.type === 'work_closed' && typeof payload.notes === 'string' && payload.notes) {
+    return payload.notes;
+  }
   if (event.type === 'contract_signed' && typeof payload.signer_role === 'string') {
     return payload.signer_role === 'client' ? 'Firmó el cliente' : 'Firmó el experto';
   }

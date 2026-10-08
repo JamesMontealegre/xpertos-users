@@ -40,9 +40,11 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Xpertos necesita acceso a tus fotos para adjuntarlas a tus solicitudes de servicio y comprobantes de pago."
+          "photosPermission": "Xpertos necesita acceso a tus fotos para adjuntarlas a tus solicitudes de servicio y comprobantes de pago.",
+          "cameraPermission": "Xpertos usa la cámara para tomar las fotos del antes y de cada jornada de trabajo."
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true,

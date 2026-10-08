@@ -20,9 +20,9 @@ type ViewOption = {
 };
 
 const VIEWS: ViewOption[] = [
-  { key: 'client', title: 'Cliente', description: 'Solicitar servicios, pagar etapas, firmar y calificar.', icon: 'home-outline' },
+  { key: 'client', title: 'Cliente', description: 'Solicitar servicios, pagar, descargar el contrato y calificar.', icon: 'home-outline' },
   { key: 'applicant', title: 'Aspirante a experto', description: 'Postulación y carga de documentos.', icon: 'document-text-outline' },
-  { key: 'expert', title: 'Experto', description: 'Servicios asignados, disponibilidad y perfil.', icon: 'construct-outline' },
+  { key: 'expert', title: 'Experto', description: 'Cotizaciones, jornadas, disponibilidad y perfil.', icon: 'construct-outline' },
 ];
 
 /**
