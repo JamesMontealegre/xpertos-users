@@ -33,7 +33,7 @@ export function Screen({ children, title, subtitle, refreshing = false, onRefres
   const header =
     title || subtitle ? (
       <View style={styles.header}>
-        {brand ? <Logo variant="horizontal" width={180} style={styles.brand} /> : null}
+        {brand ? <Logo variant="wordmark" width={160} style={styles.brand} /> : null}
         {title ? <Text style={styles.title}>{title}</Text> : null}
         {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
       </View>

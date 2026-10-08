@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="27 108.5 348 348" role="img" aria-labelledby="t"><title id="t">Xpertos</title><defs>
+  <linearGradient id="dxo" x1="0" y1="198" x2="0" y2="393" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#FD9A00"/><stop offset="1" stop-color="#FB4A03"/></linearGradient>
+  <linearGradient id="dxb1" x1="362" y1="164" x2="215" y2="262" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#1A7AD8"/><stop offset="1" stop-color="#062E78"/></linearGradient>
+  <linearGradient id="dxb2" x1="210" y1="318" x2="356" y2="401" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#062E78"/><stop offset="1" stop-color="#1468D2"/></linearGradient>
+  <linearGradient id="dwm" x1="0" y1="218" x2="0" y2="345" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#073A8F"/><stop offset="1" stop-color="#00266B"/></linearGradient>
+  <linearGradient id="dhb" x1="612" y1="420" x2="300" y2="640" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0A7FE6"/><stop offset=".5" stop-color="#0451B0"/><stop offset="1" stop-color="#01236A"/></linearGradient>
+  <linearGradient id="dhk" x1="612" y1="0" x2="745" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#044CA9"/><stop offset="1" stop-color="#1478D6"/></linearGradient>
+  <linearGradient id="dho" x1="650" y1="400" x2="950" y2="700" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#FDA301"/><stop offset=".45" stop-color="#FE7A01"/><stop offset="1" stop-color="#EE4400"/></linearGradient>
+</defs><path d="M82,198 L172,198 L240,278 L122,393 L40,393 L152,278 Z" fill="url(#dxo)" stroke="url(#dxo)" stroke-width="6" stroke-linejoin="round"/><path d="M277,164 L362,164 L249,269 L212,230 Z" fill="url(#dxb1)" stroke="url(#dxb1)" stroke-width="6" stroke-linejoin="round"/><path d="M245,292 L356,401 L257,401 L201,331 Z" fill="url(#dxb2)" stroke="url(#dxb2)" stroke-width="6" stroke-linejoin="round"/></svg>

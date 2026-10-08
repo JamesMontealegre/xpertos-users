@@ -1,15 +1,16 @@
 import { View, type StyleProp, type ViewStyle } from 'react-native';
 import { SvgXml } from 'react-native-svg';
 
-import { LOGO_HORIZONTAL_RATIO, LOGO_HORIZONTAL_XML, LOGO_MARK_XML, LOGO_RATIO, LOGO_XML } from '@/lib/brand-logo';
+import { LOGO_RATIO, LOGO_WORDMARK_RATIO, LOGO_WORDMARK_XML, LOGO_XML } from '@/lib/brand-logo';
 
+/**
+ * Las dos versiones del logo de Xpertos:
+ * - `full`: logo completo con la casa y el lema "servicios a tu medida".
+ * - `wordmark`: solo XPERTOS, para encabezados.
+ */
 const VARIANTS = {
-  /** Logo completo con el lema "servicios a tu medida". */
   full: { xml: LOGO_XML, ratio: LOGO_RATIO, label: 'Xpertos, servicios a tu medida' },
-  /** Casa + XPERTOS, para encabezados. */
-  horizontal: { xml: LOGO_HORIZONTAL_XML, ratio: LOGO_HORIZONTAL_RATIO, label: 'Xpertos' },
-  /** Solo la casa. */
-  mark: { xml: LOGO_MARK_XML, ratio: 1, label: 'Xpertos' },
+  wordmark: { xml: LOGO_WORDMARK_XML, ratio: LOGO_WORDMARK_RATIO, label: 'Xpertos' },
 } as const;
 
 export function Logo({
