@@ -3,8 +3,9 @@ import { Tabs } from 'expo-router/js-tabs';
 import { TabIcon, tabBarOptions } from '@/components/tab-icon';
 import { useRoleGuard } from '@/hooks/use-role-guard';
 
+/** Panel del cliente final. Las cuentas con postulación de experto no entran aquí. */
 export default function ClientLayout() {
-  const guard = useRoleGuard(['client']);
+  const guard = useRoleGuard(['client', 'admin'], { applicant: false });
   if (guard) return guard;
 
   return (
@@ -21,13 +22,6 @@ export default function ClientLayout() {
         options={{
           title: 'Nuevo',
           tabBarIcon: ({ color }) => <TabIcon name="add-circle-outline" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="apply"
-        options={{
-          title: 'Ser experto',
-          tabBarIcon: ({ color }) => <TabIcon name="construct-outline" color={color} />,
         }}
       />
       <Tabs.Screen

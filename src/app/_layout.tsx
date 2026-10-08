@@ -42,6 +42,7 @@ function RootNavigator() {
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       <Stack.Screen name="(client)" options={{ headerShown: false }} />
+      <Stack.Screen name="(applicant)" options={{ headerShown: false }} />
       <Stack.Screen name="(expert)" options={{ headerShown: false }} />
       <Stack.Screen name="admin" options={{ headerShown: false }} />
       <Stack.Screen name="service/[id]" options={{ title: 'Detalle del servicio', headerBackTitle: 'Volver' }} />

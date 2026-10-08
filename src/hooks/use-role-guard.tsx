@@ -1,20 +1,31 @@
-import { Redirect } from 'expo-router';
 import type { ReactNode } from 'react';
 
+import { RedirectOnce } from '@/components/redirect-once';
 import { Loading } from '@/components/ui/screen';
 import type { Enums } from '@/lib/database.types';
+import { homeFor } from '@/lib/home';
 import { useAuth } from '@/providers/auth';
 
+type Options = {
+  /** Para rol client: true exige ser aspirante (con postulación); false exige NO serlo. */
+  applicant?: boolean;
+};
+
 /**
- * Protege un grupo de rutas: sin sesión → login; con rol distinto → su propio panel.
+ * Protege un grupo de rutas: sin sesión → login; con otro tipo de cuenta → su propio inicio.
  * Devuelve el contenido a renderizar en lugar del grupo (o null si todo está bien).
  */
-export function useRoleGuard(allowed: Enums<'user_role'>[]): ReactNode | null {
-  const { session, profile, loading } = useAuth();
+export function useRoleGuard(allowed: Enums<'user_role'>[], options: Options = {}): ReactNode | null {
+  const { session, profile, isApplicant, loading } = useAuth();
 
   if (loading) return <Loading />;
-  if (!session) return <Redirect href="/(auth)/login" />;
+  if (!session) return <RedirectOnce href="/(auth)/login" />;
   if (!profile) return <Loading message="Preparando tu perfil…" />;
-  if (!allowed.includes(profile.role)) return <Redirect href="/" />;
+
+  const roleOk = allowed.includes(profile.role);
+  const applicantOk =
+    profile.role !== 'client' || options.applicant === undefined || options.applicant === isApplicant;
+
+  if (!roleOk || !applicantOk) return <RedirectOnce href={homeFor(profile, isApplicant)} />;
   return null;
 }

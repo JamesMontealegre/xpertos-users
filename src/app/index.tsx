@@ -1,22 +1,15 @@
-import { Redirect } from 'expo-router';
-
+import { RedirectOnce } from '@/components/redirect-once';
 import { Loading } from '@/components/ui/screen';
+import { homeFor } from '@/lib/home';
 import { useAuth } from '@/providers/auth';
 
-/** Punto de entrada: redirige según sesión y rol. */
+/** Punto de entrada: redirige según sesión y tipo de cuenta. */
 export default function Index() {
-  const { session, profile, loading } = useAuth();
+  const { session, profile, isApplicant, loading } = useAuth();
 
   if (loading) return <Loading />;
-  if (!session) return <Redirect href="/(auth)/login" />;
+  if (!session) return <RedirectOnce href="/(auth)/login" />;
   if (!profile) return <Loading message="Preparando tu perfil…" />;
 
-  switch (profile.role) {
-    case 'admin':
-      return <Redirect href="/admin" />;
-    case 'expert':
-      return <Redirect href="/(expert)/assigned" />;
-    default:
-      return <Redirect href="/(client)" />;
-  }
+  return <RedirectOnce href={homeFor(profile, isApplicant)} />;
 }

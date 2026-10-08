@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
 
@@ -9,7 +10,7 @@ import { colors, spacing } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/providers/auth';
 
-/** Formulario de datos básicos del perfil + cerrar sesión. Compartido por cliente y experto. */
+/** Formulario de datos básicos del perfil + cerrar sesión. Compartido por cliente, aspirante y experto. */
 export function ProfileForm() {
   const { profile, session, refreshProfile, signOut } = useAuth();
   const [fullName, setFullName] = useState(profile?.full_name ?? '');
@@ -52,6 +53,9 @@ export function ProfileForm() {
         <Input label="Ciudad" value={city} onChangeText={setCity} placeholder="Bogotá" />
         <Button title="Guardar cambios" onPress={save} loading={saving} />
       </Card>
+      {profile?.role === 'admin' ? (
+        <Button title="Cambiar de vista (super admin)" variant="outline" onPress={() => router.replace('/admin')} />
+      ) : null}
       <Button title="Cerrar sesión" variant="danger" onPress={signOut} />
     </>
   );

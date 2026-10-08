@@ -29,7 +29,7 @@ type FormState = {
   bio: string;
 };
 
-export default function ApplyScreen() {
+export default function ApplicationScreen() {
   const { session, profile, refreshProfile } = useAuth();
   const [categories, setCategories] = useState<Tables<'service_categories'>[]>([]);
   const [application, setApplication] = useState<Application | null | undefined>(undefined);
@@ -77,6 +77,8 @@ export default function ApplyScreen() {
     setError(null);
     setApplication(data);
     if (data) {
+      // Postulación creada al registrarse (o desde la landing) sin datos: abrir el formulario directamente.
+      if (data.category_ids.length === 0 && (data.status === 'pending' || data.status === 'needs_info')) setEditing(true);
       setForm({
         phone: data.phone ?? '',
         city: data.city ?? '',
@@ -200,8 +202,8 @@ export default function ApplyScreen() {
 
   return (
     <Screen
-      title="Ser experto"
-      subtitle="Únete a la red de expertos verificados de Xpertos"
+      title="Mi postulación"
+      subtitle="Completa tu información y sube tus documentos"
       refreshing={refreshing}
       onRefresh={refresh}
       withTabs>
@@ -218,7 +220,7 @@ export default function ApplyScreen() {
             {application.status === 'approved' ? (
               <InfoBanner
                 tone="success"
-                message="¡Ya eres experto! Si aún ves el panel de cliente, cierra sesión y vuelve a entrar para ver tu nuevo panel."
+                message="¡Ya eres experto! Toca «Actualizar mi panel» para ver tus servicios asignados."
               />
             ) : application.status === 'rejected' ? (
               <InfoBanner tone="warning" message="Tu postulación no fue aprobada en esta ocasión." />
@@ -290,8 +292,8 @@ export default function ApplyScreen() {
         </>
       ) : (
         <Card style={styles.card}>
-          <Text style={styles.cardTitle}>{application ? 'Editar postulación' : 'Cuéntanos sobre ti'}</Text>
-          {!application ? (
+          <Text style={styles.cardTitle}>{application && application.category_ids.length > 0 ? 'Editar postulación' : 'Cuéntanos sobre ti'}</Text>
+          {!application || application.category_ids.length === 0 ? (
             <Text style={styles.help}>
               Un operador de Xpertos revisará tu información y tus documentos. Si te aprueban, podrás recibir servicios asignados.
             </Text>
@@ -321,7 +323,7 @@ export default function ApplyScreen() {
             placeholder="Trabajos que has realizado, certificaciones, herramientas, etc."
           />
           <Button title={application ? 'Guardar cambios' : 'Enviar postulación'} onPress={submit} loading={saving} />
-          {application ? <Button title="Cancelar" variant="ghost" onPress={() => setEditing(false)} /> : null}
+          {application && application.category_ids.length > 0 ? <Button title="Cancelar" variant="ghost" onPress={() => setEditing(false)} /> : null}
         </Card>
       )}
     </Screen>

@@ -9,6 +9,8 @@ export type Profile = Tables<'profiles'>;
 type AuthContextValue = {
   session: Session | null;
   profile: Profile | null;
+  /** true cuando la cuenta tiene una postulación de experto: es aspirante, no cliente. */
+  isApplicant: boolean;
   loading: boolean;
   refreshProfile: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -16,18 +18,30 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-async function fetchProfile(userId: string): Promise<Profile | null> {
-  const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
-  if (error) {
-    console.warn('No se pudo cargar el perfil', error.message);
-    return null;
+type Account = { profile: Profile | null; isApplicant: boolean };
+
+async function fetchAccount(userId: string, email: string | undefined): Promise<Account> {
+  const [profileResult, applicationResult] = await Promise.all([
+    supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
+    supabase
+      .from('expert_applications')
+      .select('id')
+      .or(email ? `user_id.eq.${userId},email.ilike.${email}` : `user_id.eq.${userId}`)
+      .limit(1)
+      .maybeSingle(),
+  ]);
+  if (profileResult.error) {
+    console.warn('No se pudo cargar el perfil', profileResult.error.message);
   }
-  return data;
+  if (applicationResult.error) {
+    console.warn('No se pudo consultar la postulación', applicationResult.error.message);
+  }
+  return { profile: profileResult.data ?? null, isApplicant: Boolean(applicationResult.data) };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [account, setAccount] = useState<Account>({ profile: null, isApplicant: false });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!active) return;
       setSession(data.session);
       if (data.session) {
-        setProfile(await fetchProfile(data.session.user.id));
+        setAccount(await fetchAccount(data.session.user.id, data.session.user.email));
       }
       if (active) setLoading(false);
     });
@@ -46,15 +60,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!active) return;
       setSession(nextSession);
       if (!nextSession) {
-        setProfile(null);
+        setAccount({ profile: null, isApplicant: false });
         setLoading(false);
         return;
       }
       // Evitamos await directo dentro del callback (recomendación de supabase-js).
       setTimeout(async () => {
-        const next = await fetchProfile(nextSession.user.id);
+        const next = await fetchAccount(nextSession.user.id, nextSession.user.email);
         if (active) {
-          setProfile(next);
+          setAccount(next);
           setLoading(false);
         }
       }, 0);
@@ -68,18 +82,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshProfile = useCallback(async () => {
     if (!session) return;
-    setProfile(await fetchProfile(session.user.id));
+    setAccount(await fetchAccount(session.user.id, session.user.email));
   }, [session]);
 
   const signOut = useCallback(async () => {
     await supabase.auth.signOut();
-    setProfile(null);
+    setAccount({ profile: null, isApplicant: false });
     setSession(null);
   }, []);
 
   const value = useMemo(
-    () => ({ session, profile, loading, refreshProfile, signOut }),
-    [session, profile, loading, refreshProfile, signOut]
+    () => ({
+      session,
+      profile: account.profile,
+      isApplicant: account.isApplicant,
+      loading,
+      refreshProfile,
+      signOut,
+    }),
+    [session, account, loading, refreshProfile, signOut]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

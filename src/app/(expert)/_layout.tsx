@@ -7,7 +7,7 @@ import { useRoleGuard } from '@/hooks/use-role-guard';
 export const unstable_settings = { initialRouteName: 'assigned' };
 
 export default function ExpertLayout() {
-  const guard = useRoleGuard(['expert']);
+  const guard = useRoleGuard(['expert', 'admin']);
   if (guard) return guard;
 
   return (
