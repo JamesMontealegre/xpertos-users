@@ -81,26 +81,38 @@ export const contractStatus: Record<Enums<'contract_status'>, { label: string; t
   void: { label: 'Anulado', tone: 'red' },
 };
 
-/** `repeatable`: se puede cargar más de un archivo de ese tipo. Los demás se cargan una sola vez. */
-export const documentKinds: { value: Enums<'document_kind'>; label: string; repeatable?: boolean }[] = [
-  { value: 'id_front', label: 'Cédula (frente)' },
-  { value: 'id_back', label: 'Cédula (reverso)' },
+type DocumentKindOption = {
+  value: Enums<'document_kind'>;
+  label: string;
+  /** Obligatorio para que el operador apruebe la postulación. */
+  required?: boolean;
+  /** Se puede cargar más de un archivo de ese tipo. Los demás se cargan una sola vez. */
+  repeatable?: boolean;
+};
+
+/** Orden del desplegable: primero los requeridos, luego los opcionales. */
+export const documentKinds: DocumentKindOption[] = [
+  { value: 'id_front', label: 'Cédula (frente)', required: true },
+  { value: 'id_back', label: 'Cédula (reverso)', required: true },
+  { value: 'social_security', label: 'Planilla de seguridad social y ARL', required: true },
+  { value: 'photo', label: 'Foto 3x4 fondo blanco', required: true },
+  { value: 'recommendation_letter', label: 'Carta de recomendación del último trabajo', required: true },
   { value: 'rut', label: 'RUT' },
+  { value: 'background_check', label: 'Certificado de antecedentes' },
   { value: 'certificate', label: 'Certificado o diploma', repeatable: true },
   { value: 'portfolio', label: 'Portafolio de trabajos', repeatable: true },
-  { value: 'background_check', label: 'Certificado de antecedentes' },
-  { value: 'social_security', label: 'Planilla de seguridad social' },
   { value: 'other', label: 'Otro', repeatable: true },
 ];
 
-/** Tipos que todavía se pueden elegir: los únicos ya cargados salen del listado. */
+/** Tipos que todavía se pueden elegir: los de una sola carga ya cargados salen del listado. */
 export function availableDocumentKinds(uploaded: Enums<'document_kind'>[]) {
   return documentKinds.filter((k) => k.repeatable || !uploaded.includes(k.value));
 }
 
 /**
- * Siguiente tipo a sugerir después de cargar `after`: el próximo aún no cargado en el orden de la
- * lista (dando la vuelta); si ya están todos, el primer tipo repetible.
+ * Siguiente tipo a sugerir después de cargar `after`: el próximo requerido pendiente (en el orden
+ * de la lista, dando la vuelta); si no queda ninguno, el próximo opcional de una sola carga; si ya
+ * están todos, el primer tipo repetible.
  */
 export function nextDocumentKind(
   uploaded: Enums<'document_kind'>[],
@@ -108,13 +120,14 @@ export function nextDocumentKind(
 ): Enums<'document_kind'> | null {
   const start = after ? documentKinds.findIndex((k) => k.value === after) + 1 : 0;
   const ordered = [...documentKinds.slice(start), ...documentKinds.slice(0, start)];
-  const pending = ordered.find((k) => k.value !== 'other' && !uploaded.includes(k.value));
-  return pending?.value ?? availableDocumentKinds(uploaded)[0]?.value ?? null;
+  const pendingRequired = ordered.find((k) => k.required && !uploaded.includes(k.value));
+  const pendingOptional = ordered.find((k) => !k.required && !k.repeatable && !uploaded.includes(k.value));
+  return pendingRequired?.value ?? pendingOptional?.value ?? availableDocumentKinds(uploaded)[0]?.value ?? null;
 }
 
-/** Tipos únicos que el aspirante aún no ha cargado (para mostrar qué le falta). */
+/** Documentos requeridos que el aspirante aún no ha cargado. */
 export function missingDocumentKinds(uploaded: Enums<'document_kind'>[]) {
-  return documentKinds.filter((k) => !k.repeatable && !uploaded.includes(k.value));
+  return documentKinds.filter((k) => k.required && !uploaded.includes(k.value));
 }
 
 export function documentKindLabel(kind: Enums<'document_kind'>): string {

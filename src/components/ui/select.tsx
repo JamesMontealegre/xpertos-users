@@ -4,7 +4,13 @@ import { FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native
 
 import { colors, radius, spacing } from '@/constants/theme';
 
-export type SelectOption<T extends string = string> = { value: T; label: string; description?: string };
+export type SelectOption<T extends string = string> = {
+  value: T;
+  label: string;
+  description?: string;
+  /** Etiqueta corta junto al texto de la opción, p. ej. "Requerido". */
+  badge?: string;
+};
 
 type BaseProps<T extends string> = {
   label?: string;
@@ -82,7 +88,14 @@ export function Select<T extends string>(props: SingleProps<T> | MultiProps<T>) 
                     onPress={() => toggle(item.value)}
                     style={({ pressed }) => [styles.option, selected && styles.optionSelected, pressed && styles.pressed]}>
                     <View style={styles.optionText}>
-                      <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>{item.label}</Text>
+                      <View style={styles.optionLabelRow}>
+                        <Text style={[styles.optionLabel, selected && styles.optionLabelSelected]}>{item.label}</Text>
+                        {item.badge ? (
+                          <View style={styles.badge}>
+                            <Text style={styles.badgeText}>{item.badge}</Text>
+                          </View>
+                        ) : null}
+                      </View>
                       {item.description ? <Text style={styles.optionDescription}>{item.description}</Text> : null}
                     </View>
                     {selected ? <Ionicons name="checkmark-circle" size={20} color={colors.primary} /> : null}
@@ -159,7 +172,10 @@ const styles = StyleSheet.create({
   optionSelected: { backgroundColor: colors.primarySoft },
   pressed: { opacity: 0.8 },
   optionText: { flex: 1, gap: 2 },
+  optionLabelRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: spacing.sm },
   optionLabel: { fontSize: 16, color: colors.text },
+  badge: { backgroundColor: colors.accentSoft, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
+  badgeText: { fontSize: 12, fontWeight: '700', color: '#C2410C' },
   optionLabelSelected: { fontWeight: '700', color: colors.primary },
   optionDescription: { fontSize: 13, color: colors.textMuted },
   doneButton: {

@@ -157,7 +157,11 @@ export default function ApplicationScreen() {
   // Los tipos únicos ya cargados salen del listado; si la selección dejó de estar disponible
   // (p. ej. recién cargada), se sugiere el siguiente tipo pendiente.
   const uploadedKinds = documents.map((d) => d.kind);
-  const kindOptions = availableDocumentKinds(uploadedKinds);
+  const kindOptions = availableDocumentKinds(uploadedKinds).map((k) => ({
+    value: k.value,
+    label: k.label,
+    badge: k.required ? 'Requerido' : undefined,
+  }));
   const selectedKind =
     docKind && kindOptions.some((k) => k.value === docKind) ? docKind : nextDocumentKind(uploadedKinds, null);
   const missingKinds = missingDocumentKinds(uploadedKinds);
@@ -266,7 +270,7 @@ export default function ApplicationScreen() {
           <SectionTitle>Documentos</SectionTitle>
           <Card style={styles.card}>
             <Text style={styles.help}>
-              Adjunta tu cédula, RUT, certificados, portafolio, antecedentes y planilla de seguridad social (imagen o PDF, máx. 10 MB).
+              Requeridos: cédula por ambos lados, planilla de seguridad social y ARL, foto 3x4 con fondo blanco y carta de recomendación de tu último trabajo. Opcionales: RUT, antecedentes, certificados y portafolio (imagen o PDF, máx. 10 MB).
             </Text>
             {documents.length === 0 ? (
               <Text style={styles.muted}>Aún no has subido documentos.</Text>
@@ -296,13 +300,13 @@ export default function ApplicationScreen() {
               <>
                 {missingKinds.length > 0 ? (
                   <Text style={styles.help}>
-                    <Text style={styles.pendingLabel}>Te falta: </Text>
+                    <Text style={styles.pendingLabel}>Requeridos pendientes: </Text>
                     {missingKinds.map((k) => k.label).join(', ')}.
                   </Text>
                 ) : (
                   <InfoBanner
                     tone="success"
-                    message="Ya cargaste todos los documentos obligatorios. Puedes agregar más certificados o fotos de tu portafolio."
+                    message="Ya cargaste todos los documentos requeridos. Puedes agregar documentos opcionales como RUT, certificados o portafolio."
                   />
                 )}
                 <Select
