@@ -1,6 +1,14 @@
-import { StyleSheet, Text, TextInput, View, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
+import {
+  StyleSheet,
+  TextInput,
+  View,
+  type StyleProp,
+  type TextInputProps,
+  type ViewStyle,
+} from 'react-native';
 
-import { colors, radius, spacing } from '@/constants/theme';
+import { Text } from '@/components/ui/text';
+import { colors, fonts, radius, spacing } from '@/constants/theme';
 
 type Props = TextInputProps & {
   label?: string;
@@ -41,6 +49,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: 12,
     fontSize: 16,
+    fontFamily: fonts.regular,
     color: colors.text,
     backgroundColor: colors.surface,
   },

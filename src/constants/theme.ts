@@ -1,18 +1,34 @@
 import '@/global.css';
 
+/** Rampa de la marca alrededor del azul del logo (#0A4BAF = 600). */
+export const brand = {
+  50: '#EEF4FD',
+  100: '#D9E6FB',
+  200: '#B6CFF7',
+  300: '#86AFF0',
+  400: '#4F87E6',
+  500: '#2766D6',
+  600: '#0A4BAF',
+  700: '#083C8F',
+  800: '#0A3474',
+  900: '#0C2D60',
+  950: '#081C3D',
+} as const;
+
 export const colors = {
-  // Colores del logo: azul (principal) y naranja (acento).
-  primary: '#0A4BAF',
-  primaryHover: '#083A8C',
-  primarySoft: '#E7EFFC',
+  primary: brand[600],
+  primaryHover: brand[700],
+  primarySoft: brand[50],
+  // Naranja del logo.
   accent: '#F26A00',
   accentHover: '#D45A00',
   accentSoft: '#FFEFE2',
-  background: '#F8FAFC',
+  // Fondo general de la app ("surface" del tema); las tarjetas van en blanco encima.
+  background: '#EBEFF2',
   surface: '#FFFFFF',
   text: '#0F172A',
-  textMuted: '#64748B',
-  border: '#E2E8F0',
+  textMuted: '#5A6A7E',
+  border: '#DBE1E7',
   danger: '#DC2626',
   dangerSoft: '#FEE2E2',
   success: '#16A34A',
@@ -26,6 +42,20 @@ export const colors = {
   // Tono de estado "En ejecución" (se mantiene verde azulado para distinguirlo de "Asignado").
   teal: '#0F766E',
   tealSoft: '#CCFBF1',
+} as const;
+
+/**
+ * Mulish: en nativo cada peso es un archivo distinto, así que el peso se elige por familia
+ * (ver `src/components/ui/text.tsx`) y no con `fontWeight`.
+ */
+export const fonts = {
+  regular: 'Mulish_400Regular',
+  italic: 'Mulish_400Regular_Italic',
+  medium: 'Mulish_500Medium',
+  semibold: 'Mulish_600SemiBold',
+  bold: 'Mulish_700Bold',
+  extrabold: 'Mulish_800ExtraBold',
+  black: 'Mulish_900Black',
 } as const;
 
 export const spacing = {

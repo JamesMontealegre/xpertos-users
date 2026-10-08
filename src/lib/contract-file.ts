@@ -111,9 +111,10 @@ export function markdownToHtml(markdown: string): string {
 }
 
 const CONTRACT_CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Mulish:ital,wght@0,400..900;1,400..900&display=swap');
   @page { margin: 18mm 16mm; }
-  .xp-contract { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0F172A; font-size: 11pt; line-height: 1.45; }
-  .xp-contract h1 { font-size: 17pt; color: #083A8C; margin: 0 0 10px; }
+  .xp-contract { font-family: 'Mulish', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0F172A; font-size: 11pt; line-height: 1.45; }
+  .xp-contract h1 { font-size: 17pt; color: #083C8F; margin: 0 0 10px; }
   .xp-contract h2 { font-size: 12.5pt; margin: 18px 0 6px; padding-bottom: 3px; border-bottom: 1px solid #E2E8F0; }
   .xp-contract h3 { font-size: 11.5pt; margin: 12px 0 4px; }
   .xp-contract p { margin: 6px 0; }

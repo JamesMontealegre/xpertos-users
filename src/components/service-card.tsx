@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
+import { Text } from '@/components/ui/text';
 import { colors, spacing } from '@/constants/theme';
 import type { Tables } from '@/lib/database.types';
 import { formatDate } from '@/lib/format';

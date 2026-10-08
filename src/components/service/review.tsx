@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { StyleSheet, Text } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import { Button } from '@/components/ui/button';
 import { Card, SectionTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ErrorBanner } from '@/components/ui/screen';
 import { StarRating } from '@/components/ui/star-rating';
+import { Text } from '@/components/ui/text';
 import { colors, spacing } from '@/constants/theme';
 import type { Tables } from '@/lib/database.types';
 import { formatDateTime } from '@/lib/format';

@@ -1,3 +1,13 @@
+import {
+  Mulish_400Regular,
+  Mulish_400Regular_Italic,
+  Mulish_500Medium,
+  Mulish_600SemiBold,
+  Mulish_700Bold,
+  Mulish_800ExtraBold,
+  Mulish_900Black,
+  useFonts,
+} from '@expo-google-fonts/mulish';
 import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -5,7 +15,7 @@ import { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { Loading } from '@/components/ui/screen';
-import { colors } from '@/constants/theme';
+import { colors, fonts } from '@/constants/theme';
 import { AuthProvider, useAuth } from '@/providers/auth';
 
 SplashScreen.preventAutoHideAsync();
@@ -19,6 +29,12 @@ const theme = {
     card: colors.surface,
     text: colors.text,
     border: colors.border,
+  },
+  fonts: {
+    regular: { fontFamily: fonts.regular, fontWeight: 'normal' as const },
+    medium: { fontFamily: fonts.medium, fontWeight: 'normal' as const },
+    bold: { fontFamily: fonts.bold, fontWeight: 'normal' as const },
+    heavy: { fontFamily: fonts.extrabold, fontWeight: 'normal' as const },
   },
 };
 
@@ -35,7 +51,8 @@ function RootNavigator() {
     <Stack
       screenOptions={{
         headerTintColor: colors.primary,
-        headerTitleStyle: { color: colors.text, fontWeight: '700' },
+        headerTitleStyle: { color: colors.text, fontFamily: fonts.bold },
+        headerBackTitleStyle: { fontFamily: fonts.regular },
         headerStyle: { backgroundColor: colors.surface },
         contentStyle: { backgroundColor: colors.background },
       }}>
@@ -53,6 +70,19 @@ function RootNavigator() {
 }
 
 export default function RootLayout() {
+  // Mulish (400–900). Si falla la carga se sigue con la fuente del sistema.
+  const [fontsLoaded, fontError] = useFonts({
+    Mulish_400Regular,
+    Mulish_400Regular_Italic,
+    Mulish_500Medium,
+    Mulish_600SemiBold,
+    Mulish_700Bold,
+    Mulish_800ExtraBold,
+    Mulish_900Black,
+  });
+
+  if (!fontsLoaded && !fontError) return null;
+
   return (
     <SafeAreaProvider>
       <ThemeProvider value={theme}>

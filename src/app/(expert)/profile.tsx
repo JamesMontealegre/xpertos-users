@@ -1,6 +1,6 @@
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ProfileForm } from '@/components/profile-form';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { ErrorBanner, InfoBanner, Screen } from '@/components/ui/screen';
 import { Select } from '@/components/ui/select';
 import { StarRating } from '@/components/ui/star-rating';
+import { Text } from '@/components/ui/text';
 import { colors, spacing } from '@/constants/theme';
 import type { Enums, Tables } from '@/lib/database.types';
 import { isValidNequi, payoutMethodLabel, payoutMethods } from '@/lib/labels';

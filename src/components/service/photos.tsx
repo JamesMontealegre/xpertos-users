@@ -1,7 +1,8 @@
-import { StyleSheet, Text } from 'react-native';
+import { StyleSheet } from 'react-native';
 
 import { PhotoGrid } from '@/components/service/photo-grid';
 import { Card, SectionTitle } from '@/components/ui/card';
+import { Text } from '@/components/ui/text';
 import { colors } from '@/constants/theme';
 import type { Tables } from '@/lib/database.types';
 

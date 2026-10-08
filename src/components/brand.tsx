@@ -1,6 +1,7 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { Logo } from '@/components/logo';
+import { Text } from '@/components/ui/text';
 import { colors, spacing } from '@/constants/theme';
 
 /** Logo completo de Xpertos (con el lema) y un texto de contexto opcional. */

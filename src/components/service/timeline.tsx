@@ -1,6 +1,7 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { Card, SectionTitle } from '@/components/ui/card';
+import { Text } from '@/components/ui/text';
 import { colors, spacing } from '@/constants/theme';
 import type { Enums, Tables } from '@/lib/database.types';
 import { formatCOP, formatDateTime } from '@/lib/format';

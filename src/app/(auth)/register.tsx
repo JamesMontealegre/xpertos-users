@@ -1,13 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Link } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Brand } from '@/components/brand';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ErrorBanner, InfoBanner, Screen } from '@/components/ui/screen';
+import { Text } from '@/components/ui/text';
 import { colors, spacing } from '@/constants/theme';
 import { supabase, translateAuthError } from '@/lib/supabase';
 

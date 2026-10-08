@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { ColorValue } from 'react-native';
 
-import { colors } from '@/constants/theme';
+import { colors, fonts } from '@/constants/theme';
 
 type Props = {
   name: keyof typeof Ionicons.glyphMap;
@@ -17,6 +17,6 @@ export const tabBarOptions = {
   tabBarActiveTintColor: colors.primary,
   tabBarInactiveTintColor: colors.textMuted,
   tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
-  tabBarLabelStyle: { fontSize: 12, fontWeight: '600' as const },
+  tabBarLabelStyle: { fontSize: 12, fontFamily: fonts.semibold },
   headerShown: false,
 };

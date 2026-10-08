@@ -6,12 +6,12 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Logo } from '@/components/logo';
+import { Text } from '@/components/ui/text';
 import { colors, maxContentWidth, spacing } from '@/constants/theme';
 
 type Props = {

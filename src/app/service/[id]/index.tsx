@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { ContractSection } from '@/components/service/contract';
 import { PayoutFrequencySection } from '@/components/service/payout-frequency';
@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Card, KeyValue, SectionTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorBanner, InfoBanner, Loading, Screen } from '@/components/ui/screen';
+import { Text } from '@/components/ui/text';
 import { colors, radius, spacing } from '@/constants/theme';
 import type { Enums, Tables } from '@/lib/database.types';
 import { formatCOP, formatDateTime, formatPlainDate } from '@/lib/format';

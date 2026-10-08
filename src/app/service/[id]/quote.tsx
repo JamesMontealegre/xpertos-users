@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { PhotoGrid } from '@/components/service/photo-grid';
 import { QuoteSummary } from '@/components/service/quote-summary';
@@ -11,6 +11,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { ErrorBanner, InfoBanner, Loading, Screen } from '@/components/ui/screen';
 import { Select } from '@/components/ui/select';
+import { Text } from '@/components/ui/text';
 import { colors, radius, spacing } from '@/constants/theme';
 import type { Enums, Tables } from '@/lib/database.types';
 import { formatCOP, parseMoney, parseQuantity, quantityToInput } from '@/lib/format';

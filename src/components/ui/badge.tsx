@@ -1,5 +1,6 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
+import { Text } from '@/components/ui/text';
 import { toneColors, type Tone } from '@/lib/labels';
 
 export function Badge({ label, tone = 'slate' }: { label: string; tone?: Tone }) {

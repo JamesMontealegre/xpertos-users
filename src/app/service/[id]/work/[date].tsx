@@ -1,6 +1,6 @@
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import { PhotoGrid } from '@/components/service/photo-grid';
 import type { WorkLog } from '@/components/service/work-logs';
@@ -9,6 +9,7 @@ import { Card, KeyValue, SectionTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { ErrorBanner, InfoBanner, Loading, Screen } from '@/components/ui/screen';
+import { Text } from '@/components/ui/text';
 import { colors, spacing } from '@/constants/theme';
 import type { Tables } from '@/lib/database.types';
 import { capitalizeFirst, formatPlainDate, formatTime, isValidDate, isValidTime, nowTimeCO, todayCO } from '@/lib/format';
