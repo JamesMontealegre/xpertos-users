@@ -81,16 +81,41 @@ export const contractStatus: Record<Enums<'contract_status'>, { label: string; t
   void: { label: 'Anulado', tone: 'red' },
 };
 
-export const documentKinds: { value: Enums<'document_kind'>; label: string }[] = [
+/** `repeatable`: se puede cargar más de un archivo de ese tipo. Los demás se cargan una sola vez. */
+export const documentKinds: { value: Enums<'document_kind'>; label: string; repeatable?: boolean }[] = [
   { value: 'id_front', label: 'Cédula (frente)' },
   { value: 'id_back', label: 'Cédula (reverso)' },
   { value: 'rut', label: 'RUT' },
-  { value: 'certificate', label: 'Certificado o diploma' },
-  { value: 'portfolio', label: 'Portafolio de trabajos' },
+  { value: 'certificate', label: 'Certificado o diploma', repeatable: true },
+  { value: 'portfolio', label: 'Portafolio de trabajos', repeatable: true },
   { value: 'background_check', label: 'Certificado de antecedentes' },
   { value: 'social_security', label: 'Planilla de seguridad social' },
-  { value: 'other', label: 'Otro' },
+  { value: 'other', label: 'Otro', repeatable: true },
 ];
+
+/** Tipos que todavía se pueden elegir: los únicos ya cargados salen del listado. */
+export function availableDocumentKinds(uploaded: Enums<'document_kind'>[]) {
+  return documentKinds.filter((k) => k.repeatable || !uploaded.includes(k.value));
+}
+
+/**
+ * Siguiente tipo a sugerir después de cargar `after`: el próximo aún no cargado en el orden de la
+ * lista (dando la vuelta); si ya están todos, el primer tipo repetible.
+ */
+export function nextDocumentKind(
+  uploaded: Enums<'document_kind'>[],
+  after: Enums<'document_kind'> | null
+): Enums<'document_kind'> | null {
+  const start = after ? documentKinds.findIndex((k) => k.value === after) + 1 : 0;
+  const ordered = [...documentKinds.slice(start), ...documentKinds.slice(0, start)];
+  const pending = ordered.find((k) => k.value !== 'other' && !uploaded.includes(k.value));
+  return pending?.value ?? availableDocumentKinds(uploaded)[0]?.value ?? null;
+}
+
+/** Tipos únicos que el aspirante aún no ha cargado (para mostrar qué le falta). */
+export function missingDocumentKinds(uploaded: Enums<'document_kind'>[]) {
+  return documentKinds.filter((k) => !k.repeatable && !uploaded.includes(k.value));
+}
 
 export function documentKindLabel(kind: Enums<'document_kind'>): string {
   return documentKinds.find((k) => k.value === kind)?.label ?? kind;

@@ -13,7 +13,13 @@ import { Select } from '@/components/ui/select';
 import { colors, spacing } from '@/constants/theme';
 import type { Enums, Tables } from '@/lib/database.types';
 import { formatDateTime } from '@/lib/format';
-import { applicationStatus, documentKindLabel, documentKinds } from '@/lib/labels';
+import {
+  applicationStatus,
+  availableDocumentKinds,
+  documentKindLabel,
+  missingDocumentKinds,
+  nextDocumentKind,
+} from '@/lib/labels';
 import { supabase } from '@/lib/supabase';
 import { safeFileName, signedUrl, timestamp, uploadFile } from '@/lib/upload';
 import { useAuth } from '@/providers/auth';
@@ -148,10 +154,19 @@ export default function ApplicationScreen() {
     await load();
   };
 
+  // Los tipos únicos ya cargados salen del listado; si la selección dejó de estar disponible
+  // (p. ej. recién cargada), se sugiere el siguiente tipo pendiente.
+  const uploadedKinds = documents.map((d) => d.kind);
+  const kindOptions = availableDocumentKinds(uploadedKinds);
+  const selectedKind =
+    docKind && kindOptions.some((k) => k.value === docKind) ? docKind : nextDocumentKind(uploadedKinds, null);
+  const missingKinds = missingDocumentKinds(uploadedKinds);
+
   const pickDocument = async () => {
     if (!session || !application) return;
     setError(null);
-    if (!docKind) return setError('Selecciona el tipo de documento antes de adjuntarlo.');
+    const kind = selectedKind;
+    if (!kind) return setError('Selecciona el tipo de documento antes de adjuntarlo.');
     const result = await DocumentPicker.getDocumentAsync({
       type: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
       multiple: false,
@@ -165,13 +180,14 @@ export default function ApplicationScreen() {
       await uploadFile('expert-documents', path, { uri: asset.uri, mimeType: asset.mimeType, name: asset.name });
       const { error: insertError } = await supabase.from('application_documents').insert({
         application_id: application.id,
-        kind: docKind,
+        kind,
         storage_path: path,
         file_name: asset.name,
         mime_type: asset.mimeType ?? null,
       });
       if (insertError) throw new Error(insertError.message);
-      setNotice('Documento agregado.');
+      setDocKind(nextDocumentKind([...uploadedKinds, kind], kind));
+      setNotice(`${documentKindLabel(kind)}: documento agregado.`);
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo subir el documento.');
@@ -278,10 +294,21 @@ export default function ApplicationScreen() {
             )}
             {canEdit ? (
               <>
+                {missingKinds.length > 0 ? (
+                  <Text style={styles.help}>
+                    <Text style={styles.pendingLabel}>Te falta: </Text>
+                    {missingKinds.map((k) => k.label).join(', ')}.
+                  </Text>
+                ) : (
+                  <InfoBanner
+                    tone="success"
+                    message="Ya cargaste todos los documentos obligatorios. Puedes agregar más certificados o fotos de tu portafolio."
+                  />
+                )}
                 <Select
                   label="Tipo de documento"
-                  options={documentKinds}
-                  value={docKind}
+                  options={kindOptions}
+                  value={selectedKind}
                   onChange={setDocKind}
                   placeholder="Selecciona el tipo"
                 />
@@ -346,5 +373,6 @@ const styles = StyleSheet.create({
   },
   docInfo: { flex: 1 },
   docKind: { fontSize: 14, fontWeight: '600', color: colors.text },
+  pendingLabel: { fontWeight: '600', color: colors.text },
   docName: { fontSize: 13, color: colors.textMuted },
 });
