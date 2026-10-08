@@ -8,7 +8,7 @@ export const toneColors: Record<Tone, { bg: string; fg: string }> = {
   slate: { bg: colors.slateSoft, fg: colors.slate },
   amber: { bg: colors.warningSoft, fg: colors.warning },
   blue: { bg: colors.infoSoft, fg: colors.info },
-  teal: { bg: colors.primarySoft, fg: colors.primary },
+  teal: { bg: colors.tealSoft, fg: colors.teal },
   green: { bg: colors.successSoft, fg: colors.success },
   red: { bg: colors.dangerSoft, fg: colors.danger },
   orange: { bg: colors.accentSoft, fg: colors.accent },

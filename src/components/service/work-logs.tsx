@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     backgroundColor: colors.surface,
   },
-  dayToday: { borderColor: colors.primary, borderWidth: 2, backgroundColor: '#F0FDFA' },
+  dayToday: { borderColor: colors.primary, borderWidth: 2, backgroundColor: colors.primarySoft },
   dayFuture: { opacity: 0.55, backgroundColor: colors.background },
   pressed: { opacity: 0.8 },
   dayIcon: {

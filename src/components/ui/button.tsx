@@ -41,7 +41,7 @@ export function Button({ title, onPress, variant = 'primary', loading, disabled,
 
 const variants: Record<Variant, { bg: string; pressed: string; fg: string; border: string }> = {
   primary: { bg: colors.primary, pressed: colors.primaryHover, fg: '#FFFFFF', border: colors.primary },
-  secondary: { bg: colors.accent, pressed: '#EA580C', fg: '#FFFFFF', border: colors.accent },
+  secondary: { bg: colors.accent, pressed: colors.accentHover, fg: '#FFFFFF', border: colors.accent },
   outline: { bg: colors.surface, pressed: colors.background, fg: colors.primary, border: colors.primary },
   danger: { bg: colors.surface, pressed: colors.dangerSoft, fg: colors.danger, border: colors.danger },
   ghost: { bg: 'transparent', pressed: colors.slateSoft, fg: colors.text, border: 'transparent' },

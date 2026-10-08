@@ -1,11 +1,13 @@
 import '@/global.css';
 
 export const colors = {
-  primary: '#0F766E',
-  primaryHover: '#115E59',
-  primarySoft: '#CCFBF1',
-  accent: '#F97316',
-  accentSoft: '#FFEDD5',
+  // Colores del logo: azul (principal) y naranja (acento).
+  primary: '#0A4BAF',
+  primaryHover: '#083A8C',
+  primarySoft: '#E7EFFC',
+  accent: '#F26A00',
+  accentHover: '#D45A00',
+  accentSoft: '#FFEFE2',
   background: '#F8FAFC',
   surface: '#FFFFFF',
   text: '#0F172A',
@@ -21,6 +23,9 @@ export const colors = {
   infoSoft: '#DBEAFE',
   slate: '#475569',
   slateSoft: '#E2E8F0',
+  // Tono de estado "En ejecución" (se mantiene verde azulado para distinguirlo de "Asignado").
+  teal: '#0F766E',
+  tealSoft: '#CCFBF1',
 } as const;
 
 export const spacing = {
