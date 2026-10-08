@@ -12,7 +12,7 @@ import { useAuth } from '@/providers/auth';
 
 const groups: { key: string; title: string; statuses: ServiceListItem['status'][] }[] = [
   { key: 'todo', title: 'Por iniciar', statuses: ['assigned'] },
-  { key: 'doing', title: 'En progreso', statuses: ['in_progress'] },
+  { key: 'doing', title: 'En ejecución o en pausa', statuses: ['in_progress', 'paused'] },
   { key: 'done', title: 'Completados', statuses: ['completed'] },
 ];
 

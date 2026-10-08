@@ -163,7 +163,13 @@ export default function ServiceDetailScreen() {
           <Badge label={status.label} tone={status.tone} />
         </View>
         <Text style={styles.category}>{service.service_categories?.name ?? 'Sin categoría'}</Text>
-        <InfoBanner message={isClient ? serviceStatusHelp[service.status].client : serviceStatusHelp[service.status].expert} />
+        <InfoBanner
+          tone={service.status === 'paused' ? 'warning' : 'info'}
+          message={isClient ? serviceStatusHelp[service.status].client : serviceStatusHelp[service.status].expert}
+        />
+        {service.status === 'paused' && service.pause_reason ? (
+          <KeyValue label="Motivo de la pausa" value={service.pause_reason} />
+        ) : null}
         <KeyValue label="Descripción" value={service.description} />
         <KeyValue label="Dirección" value={[service.address, service.city].filter(Boolean).join(', ')} />
         {service.estimated_price != null ? <KeyValue label="Valor estimado" value={formatCOP(service.estimated_price)} /> : null}

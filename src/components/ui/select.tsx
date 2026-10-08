@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, radius, spacing } from '@/constants/theme';
 
@@ -35,6 +36,10 @@ type MultiProps<T extends string> = BaseProps<T> & {
 export function Select<T extends string>(props: SingleProps<T> | MultiProps<T>) {
   const { label, placeholder = 'Selecciona…', options, error, disabled } = props;
   const [open, setOpen] = useState(false);
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  // En pantallas anchas (web/tablet) se muestra como diálogo centrado; en el móvil, como hoja inferior.
+  const centered = width >= 640;
 
   const selectedLabels = props.multiple
     ? options.filter((o) => props.value.includes(o.value)).map((o) => o.label)
@@ -68,8 +73,13 @@ export function Select<T extends string>(props: SingleProps<T> | MultiProps<T>) 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
-          <Pressable style={styles.sheet} onPress={() => {}}>
+        <Pressable style={[styles.backdrop, centered && styles.backdropCentered]} onPress={() => setOpen(false)}>
+          <Pressable
+            style={[
+              styles.sheet,
+              centered ? styles.sheetCentered : { paddingBottom: Math.max(insets.bottom, spacing.md) },
+            ]}
+            onPress={() => {}}>
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>{label ?? 'Selecciona'}</Text>
               <Pressable accessibilityRole="button" onPress={() => setOpen(false)} hitSlop={8}>
@@ -142,15 +152,17 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     alignItems: 'center',
   },
+  backdropCentered: { justifyContent: 'center', padding: spacing.lg },
   sheet: {
     width: '100%',
     maxWidth: 560,
-    maxHeight: '75%',
+    maxHeight: '80%',
     backgroundColor: colors.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingBottom: spacing.lg,
+    overflow: 'hidden',
   },
+  sheetCentered: { borderRadius: 20, paddingBottom: spacing.sm },
   sheetHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -160,7 +172,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   sheetTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
-  list: { flexGrow: 0 },
+  list: { flexGrow: 0, flexShrink: 1 },
   option: {
     flexDirection: 'row',
     alignItems: 'center',

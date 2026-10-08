@@ -18,8 +18,9 @@ export const serviceStatus: Record<Enums<'service_status'>, { label: string; ton
   requested: { label: 'Solicitado', tone: 'slate' },
   in_review: { label: 'En revisión', tone: 'amber' },
   assigned: { label: 'Asignado', tone: 'blue' },
-  in_progress: { label: 'En progreso', tone: 'teal' },
-  completed: { label: 'Completado', tone: 'green' },
+  in_progress: { label: 'En ejecución', tone: 'teal' },
+  paused: { label: 'En pausa', tone: 'amber' },
+  completed: { label: 'Finalizado', tone: 'green' },
   cancelled: { label: 'Cancelado', tone: 'red' },
 };
 
@@ -40,7 +41,11 @@ export const serviceStatusHelp: Record<Enums<'service_status'>, { client: string
   },
   in_progress: {
     client: 'El experto está trabajando en tu servicio. Cuando termine, podrás calificarlo.',
-    expert: 'El servicio está en progreso. Márcalo como completado cuando termines.',
+    expert: 'El servicio está en ejecución. Márcalo como completado cuando termines.',
+  },
+  paused: {
+    client: 'Xpertos pausó temporalmente tu servicio. Te avisaremos cuando se reanude.',
+    expert: 'Xpertos pausó este servicio. No continúes el trabajo hasta que se reanude.',
   },
   completed: {
     client: 'El servicio fue completado. ¡Cuéntanos cómo te fue!',
