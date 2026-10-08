@@ -114,7 +114,7 @@ export function LifecycleProgress({ status, cancelledFrom }: Props) {
                   color={done ? colors.primary : isCurrent ? currentColor : colors.border}
                 />
                 <Text style={[styles.listText, done && styles.stepLabelDone, isCurrent && { color: currentColor, fontWeight: '800' }]}>
-                  {idx + 1}. {step.key === 'running' ? (paused ? 'En pausa' : 'En ejecución / En pausa') : step.label}
+                  {idx + 1}. {step.key === 'running' && paused ? 'En pausa' : step.label}
                 </Text>
               </View>
             );
