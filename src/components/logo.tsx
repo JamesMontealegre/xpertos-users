@@ -1,3 +1,4 @@
+import { useId, useMemo } from 'react';
 import { View, type StyleProp, type ViewStyle } from 'react-native';
 import { SvgXml } from 'react-native-svg';
 
@@ -24,9 +25,16 @@ export function Logo({
 }) {
   const v = VARIANTS[variant];
   const height = Math.round(width / v.ratio);
+  // Cada logo lleva sus propios ids de degradado. Si dos pantallas montadas tienen el logo (la
+  // anterior queda oculta en la pila), en web url(#id) toma el primero, el oculto, y no se pinta.
+  const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
+  const xml = useMemo(
+    () => v.xml.replace(/id="([^"]+)"/g, `id="${uid}-$1"`).replace(/url\(#([^)]+)\)/g, `url(#${uid}-$1)`),
+    [v.xml, uid]
+  );
   return (
     <View accessible accessibilityRole="image" accessibilityLabel={v.label} style={[{ width, height }, style]}>
-      <SvgXml xml={v.xml} width={width} height={height} />
+      <SvgXml xml={xml} width={width} height={height} />
     </View>
   );
 }
