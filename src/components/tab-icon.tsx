@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import type { ColorValue } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AppHeader } from '@/components/app-header';
 import { colors, fonts } from '@/constants/theme';
 
 type Props = {
@@ -21,7 +22,7 @@ export function TabIcon({ name, color, size = 22 }: Props) {
 const TAB_BAR_HEIGHT = 60;
 
 /**
- * Opciones de la barra de pestañas. El alto se fija para que la etiqueta (Mulish 12 px) no se recorte
+ * Opciones de las pantallas con pestañas: encabezado fijo de la app y barra inferior. El alto se fija para que la etiqueta (Mulish 12 px) no se recorte
  * —con el alto por defecto (49 px) en la web le quedaban 10 px— y suma el área segura inferior del
  * teléfono (indicador de inicio del iPhone).
  */
@@ -38,6 +39,8 @@ export function useTabBarOptions() {
       paddingBottom: insets.bottom,
     },
     tabBarLabelStyle: { fontSize: 12, lineHeight: 16, fontFamily: fonts.semibold },
-    headerShown: false,
+    // Encabezado fijo de la app (logo + notificaciones) en todas las pestañas.
+    headerShown: true,
+    header: () => <AppHeader />,
   };
 }

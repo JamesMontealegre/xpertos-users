@@ -9,8 +9,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Logo } from '@/components/logo';
-import { NotificationBell } from '@/components/notifications/notification-bell';
 import { Text } from '@/components/ui/text';
 import { XLoader } from '@/components/ui/x-loader';
 import { colors, maxContentWidth, spacing } from '@/constants/theme';
@@ -23,29 +21,33 @@ type Props = {
   onRefresh?: () => void;
   /** Sin scroll (p. ej. para listas que ya hacen scroll). */
   plain?: boolean;
-  /** Pantalla principal con barra de pestañas: añade espacio inferior y la campana de notificaciones. */
+  /**
+   * Pantalla con pestañas: va debajo del encabezado fijo de la app (logo y notificaciones), que ya
+   * cubre el área segura superior, y deja espacio para la barra inferior.
+   */
   withTabs?: boolean;
-  /** Muestra el logo de Xpertos sobre el título (pantallas de inicio de cada rol). */
-  brand?: boolean;
 };
 
-export function Screen({ children, title, subtitle, refreshing = false, onRefresh, plain, withTabs, brand }: Props) {
+export function Screen({ children, title, subtitle, refreshing = false, onRefresh, plain, withTabs }: Props) {
   const insets = useSafeAreaInsets();
+  // Título de la sección (debajo del encabezado de la app en las pantallas con pestañas).
   const header =
     title || subtitle ? (
-      <View style={styles.headerRow}>
-        <View style={styles.header}>
-          {brand ? <Logo variant="wordmark" width={160} style={styles.brand} /> : null}
-          {title ? <Text style={styles.title}>{title}</Text> : null}
-          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
-        </View>
-        {withTabs ? <NotificationBell /> : null}
+      <View style={styles.header}>
+        {title ? (
+          <Text style={styles.title} accessibilityRole="header">
+            {title}
+          </Text>
+        ) : null}
+        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
       </View>
     ) : null;
+  // Sin encabezado de la app (p. ej. login), el título baja del área segura superior.
+  const topInset = title && !withTabs ? insets.top : 0;
 
   if (plain) {
     return (
-      <View style={[styles.root, { paddingTop: title ? insets.top : 0 }]}>
+      <View style={[styles.root, { paddingTop: topInset }]}>
         <View style={styles.content}>
           {header}
           {children}
@@ -59,7 +61,7 @@ export function Screen({ children, title, subtitle, refreshing = false, onRefres
       <ScrollView
         contentContainerStyle={[
           styles.scroll,
-          { paddingTop: title ? insets.top + spacing.md : spacing.md, paddingBottom: withTabs ? 96 : insets.bottom + spacing.xl },
+          { paddingTop: topInset + (withTabs ? spacing.lg : spacing.md), paddingBottom: withTabs ? spacing.xl : insets.bottom + spacing.xl },
         ]}
         keyboardShouldPersistTaps="handled"
         refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} /> : undefined}>
@@ -118,25 +120,20 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     gap: spacing.md,
   },
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
+  header: {
+    gap: 2,
     marginBottom: spacing.xs,
   },
-  header: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  brand: { marginBottom: spacing.sm },
   title: {
-    fontSize: 28,
+    fontSize: 24,
+    lineHeight: 30,
     fontWeight: '800',
     color: colors.text,
-    letterSpacing: -0.5,
+    letterSpacing: -0.3,
   },
   subtitle: {
     fontSize: 15,
+    lineHeight: 21,
     color: colors.textMuted,
   },
   loading: {

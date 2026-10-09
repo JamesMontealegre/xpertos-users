@@ -60,7 +60,7 @@ export default function AssignedServicesScreen() {
   const others = services?.filter((s) => s.status === 'cancelled') ?? [];
 
   return (
-    <Screen brand title="Servicios asignados" subtitle="Tus servicios según la etapa en que están" refreshing={refreshing} onRefresh={refresh} withTabs>
+    <Screen title="Servicios asignados" subtitle="Tus servicios según la etapa en que están" refreshing={refreshing} onRefresh={refresh} withTabs>
       <ErrorBanner message={error} />
       {services === null && !error ? (
         <Loading />

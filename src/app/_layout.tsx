@@ -14,6 +14,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { NotificationBell } from '@/components/notifications/notification-bell';
 import { NotificationToast } from '@/components/notifications/notification-toast';
 import { Loading } from '@/components/ui/screen';
 import { colors, fonts } from '@/constants/theme';
@@ -58,6 +59,8 @@ function RootNavigator() {
           headerBackTitleStyle: { fontFamily: fonts.regular },
           headerStyle: { backgroundColor: colors.surface },
           contentStyle: { backgroundColor: colors.background },
+          // Las pantallas de detalle también tienen la campana de notificaciones.
+          headerRight: () => <NotificationBell size="sm" />,
         }}>
         <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
@@ -69,7 +72,7 @@ function RootNavigator() {
         <Stack.Screen name="service/[id]/index" options={{ title: 'Detalle del servicio', headerBackTitle: 'Volver' }} />
         <Stack.Screen name="service/[id]/quote" options={{ title: 'Cotización', headerBackTitle: 'Volver' }} />
         <Stack.Screen name="service/[id]/work/[date]" options={{ title: 'Jornada', headerBackTitle: 'Volver' }} />
-        <Stack.Screen name="notifications" options={{ title: 'Notificaciones', headerBackTitle: 'Volver' }} />
+        <Stack.Screen name="notifications" options={{ title: 'Notificaciones', headerBackTitle: 'Volver', headerRight: () => null }} />
       </Stack>
       <NotificationToast />
     </>
