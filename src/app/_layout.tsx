@@ -62,6 +62,7 @@ function RootNavigator() {
       <Stack.Screen name="(applicant)" options={{ headerShown: false }} />
       <Stack.Screen name="(expert)" options={{ headerShown: false }} />
       <Stack.Screen name="admin" options={{ headerShown: false }} />
+      <Stack.Screen name="change-password" options={{ headerShown: false }} />
       <Stack.Screen name="service/[id]/index" options={{ title: 'Detalle del servicio', headerBackTitle: 'Volver' }} />
       <Stack.Screen name="service/[id]/quote" options={{ title: 'Cotización', headerBackTitle: 'Volver' }} />
       <Stack.Screen name="service/[id]/work/[date]" options={{ title: 'Jornada', headerBackTitle: 'Volver' }} />

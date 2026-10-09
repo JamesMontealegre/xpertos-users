@@ -4,6 +4,7 @@ import { RedirectOnce } from '@/components/redirect-once';
 import { Loading } from '@/components/ui/screen';
 import type { Enums } from '@/lib/database.types';
 import { homeFor } from '@/lib/home';
+import { mustChangePassword } from '@/lib/session';
 import { useAuth } from '@/providers/auth';
 
 type Options = {
@@ -22,6 +23,8 @@ export function useRoleGuard(allowed: Enums<'user_role'>[], options: Options = {
 
   if (loading) return <Loading />;
   if (!session) return <RedirectOnce href="/(auth)/login" />;
+  // Primer ingreso con clave temporal: antes de cualquier vista, crear la contraseña propia.
+  if (mustChangePassword(session)) return <RedirectOnce href="/change-password" />;
   if (!profile) return <Loading message="Preparando tu perfil…" />;
 
   // Los agentes operan desde el panel web; solo el superadmin entra a las vistas de la app.
