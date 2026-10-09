@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "npm ci",
+  "buildCommand": "npx expo export -p web",
+  "outputDirectory": "dist",
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/service/:id/work/:date", "destination": "/service/[id]/work/[date]" },
+    { "source": "/service/:id/quote", "destination": "/service/[id]/quote" },
+    { "source": "/service/:id", "destination": "/service/[id]" }
+  ]
+}
