@@ -13,9 +13,9 @@ import { ErrorBanner, InfoBanner, Loading, Screen } from '@/components/ui/screen
 import { Select } from '@/components/ui/select';
 import { Text } from '@/components/ui/text';
 import { colors, radius, spacing } from '@/constants/theme';
-import type { Enums, Tables } from '@/lib/database.types';
+import type { Tables } from '@/lib/database.types';
 import { formatCOP, parseMoney, parseQuantity, quantityToInput } from '@/lib/format';
-import { activityUnits, materialUnits, pricingModes } from '@/lib/labels';
+import { activityUnits, materialUnits } from '@/lib/labels';
 import { pickImages, removeServicePhoto, takePhoto, uploadServicePhoto } from '@/lib/photos';
 import { supabase } from '@/lib/supabase';
 import type { LocalFile } from '@/lib/upload';
@@ -52,7 +52,6 @@ export default function QuoteScreen() {
   const { session } = useAuth();
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [notFound, setNotFound] = useState(false);
-  const [mode, setMode] = useState<Enums<'pricing_mode'>>('labor_only');
   const [estimatedDays, setEstimatedDays] = useState('');
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<ItemDraft[]>([emptyItem()]);
@@ -83,7 +82,6 @@ export default function QuoteScreen() {
       photos: photos ?? [],
     });
     if (quote) {
-      setMode(quote.pricing_mode);
       setEstimatedDays(quote.estimated_days?.toString() ?? '');
       setNotes(quote.notes ?? '');
       setItems(
@@ -144,7 +142,6 @@ export default function QuoteScreen() {
   const userId = session.user.id;
   const isExpert = service.expert_id === userId;
   const editable = isExpert && service.status === 'assigned' && (!quote || quote.status === 'draft' || quote.status === 'returned');
-  const allInclusive = mode === 'all_inclusive';
   const laborTotal = items.reduce((sum, i) => sum + lineTotal(i), 0);
   const materialsEstimate = materials.reduce((sum, m) => sum + (Number.isFinite(parseMoney(m.estimatedCost)) ? parseMoney(m.estimatedCost) : 0), 0);
 
@@ -162,7 +159,9 @@ export default function QuoteScreen() {
     return (
       <Screen>
         <Stack.Screen options={{ title: 'Cotización' }} />
-        {quote?.status === 'submitted' || service.status === 'quoting' ? (
+        {quote?.status === 'approved' && quote.total == null ? (
+          <InfoBanner message="Xpertos aprobó tu cotización y se la presentó al cliente: está eligiendo entre solo mano de obra y todo incluido." />
+        ) : quote?.status === 'submitted' || service.status === 'quoting' ? (
           <InfoBanner message="En cotización: Xpertos está revisando tu cotización. Si hay algo por corregir te la devolverán con las notas." />
         ) : quote?.status === 'approved' ? (
           <InfoBanner tone="success" message={`Xpertos aprobó tu cotización.${quote.admin_notes ? ` Notas: ${quote.admin_notes}` : ''}`} />
@@ -240,7 +239,8 @@ export default function QuoteScreen() {
       if (!Number.isInteger(days) || days < 1 || days > 365) throw new Error('La duración estimada debe ser de 1 a 365 días hábiles.');
     }
 
-    const fields = { pricing_mode: mode, estimated_days: days, notes: notes.trim() || null };
+    // La modalidad no la envía el experto: la base la toma del servicio (la eligió el cliente).
+    const fields = { estimated_days: days, notes: notes.trim() || null };
     let quoteId = quote?.id;
     if (!quoteId) {
       const { data, error: insertError } = await supabase
@@ -354,26 +354,7 @@ export default function QuoteScreen() {
       <ErrorBanner message={error} />
       {notice ? <InfoBanner tone="success" message={notice} /> : null}
 
-      <SectionTitle>Modalidad</SectionTitle>
-      <View style={styles.modes} accessibilityRole="radiogroup">
-        {pricingModes.map((option) => {
-          const selected = mode === option.value;
-          return (
-            <Pressable
-              key={option.value}
-              accessibilityRole="radio"
-              aria-checked={selected}
-              onPress={() => setMode(option.value)}
-              style={[styles.mode, selected && styles.modeSelected]}>
-              <Ionicons name={selected ? 'radio-button-on' : 'radio-button-off'} size={20} color={selected ? colors.primary : colors.textMuted} />
-              <View style={styles.modeText}>
-                <Text style={[styles.modeLabel, selected && styles.modeLabelSelected]}>{option.label}</Text>
-                <Text style={styles.modeDescription}>{option.description}</Text>
-              </View>
-            </Pressable>
-          );
-        })}
-      </View>
+      <InfoBanner message="Cotiza tu mano de obra y lista los materiales que necesita el trabajo. Xpertos le presenta al cliente tu cotización y él decide si compra los materiales o si los cubre Xpertos (todo incluido)." />
 
       <Card style={styles.card}>
         <Input
@@ -451,9 +432,7 @@ export default function QuoteScreen() {
 
       <SectionTitle>Materiales</SectionTitle>
       <Text style={styles.help}>
-        {allInclusive
-          ? 'Todo incluido: tú suministras estos materiales. Indica un costo estimado para que Xpertos asigne su valor.'
-          : 'Solo mano de obra: el cliente compra estos materiales antes del inicio.'}
+        Lista los materiales con un costo estimado. Si el cliente elige solo mano de obra, los compra él antes del inicio; si elige todo incluido, Xpertos define su valor.
       </Text>
       {materials.map((m, idx) => (
         <Card key={m.key} style={styles.card}>
@@ -486,7 +465,7 @@ export default function QuoteScreen() {
             </View>
           </View>
           <Input
-            label={allInclusive ? 'Costo estimado (sugerido)' : 'Costo estimado (opcional)'}
+            label="Costo estimado (sugerido)"
             value={m.estimatedCost}
             onChangeText={(estimatedCost) => updateMaterial(m.key, { estimatedCost: estimatedCost.replace(/\D/g, '') })}
             keyboardType="number-pad"
@@ -527,9 +506,9 @@ export default function QuoteScreen() {
           <Text style={styles.totalLabel}>Total mano de obra</Text>
           <Text style={styles.totalValue}>{formatCOP(laborTotal)}</Text>
         </View>
-        {allInclusive ? (
+        {materialsEstimate > 0 ? (
           <View style={styles.totalRow}>
-            <Text style={styles.totalLabelMuted}>Materiales (estimado, lo valida Xpertos)</Text>
+            <Text style={styles.totalLabelMuted}>Materiales (estimado, para la opción todo incluido)</Text>
             <Text style={styles.totalValueMuted}>{formatCOP(materialsEstimate)}</Text>
           </View>
         ) : null}
@@ -556,22 +535,6 @@ const styles = StyleSheet.create({
   returnedText: { flex: 1, gap: 2 },
   returnedTitle: { fontSize: 15, fontWeight: '800', color: colors.warning },
   returnedNotes: { fontSize: 14, color: colors.text, lineHeight: 20 },
-  modes: { gap: spacing.sm },
-  mode: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius,
-    padding: spacing.md,
-    backgroundColor: colors.surface,
-  },
-  modeSelected: { borderColor: colors.primary, backgroundColor: colors.primarySoft, borderWidth: 2 },
-  modeText: { flex: 1, gap: 2 },
-  modeLabel: { fontSize: 15, fontWeight: '700', color: colors.text },
-  modeLabelSelected: { color: colors.primary },
-  modeDescription: { fontSize: 13, color: colors.textMuted, lineHeight: 18 },
   sectionTotal: { color: colors.primary, fontWeight: '800', fontSize: 15 },
   rowHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   rowTitle: { fontSize: 13, fontWeight: '800', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },

@@ -7,6 +7,7 @@ import { ContractSection } from '@/components/service/contract';
 import { PayoutFrequencySection } from '@/components/service/payout-frequency';
 import { ServicePhotos } from '@/components/service/photos';
 import { LifecycleProgress } from '@/components/service/progress';
+import { QuoteOptions } from '@/components/service/quote-options';
 import { QuoteSummary } from '@/components/service/quote-summary';
 import { ReviewSection } from '@/components/service/review';
 import { ScheduleCard } from '@/components/service/schedule';
@@ -22,7 +23,7 @@ import { Text } from '@/components/ui/text';
 import { colors, radius, spacing } from '@/constants/theme';
 import type { Enums, Tables } from '@/lib/database.types';
 import { formatCOP, formatDateTime, formatPlainDate } from '@/lib/format';
-import { serviceStatus, serviceStatusHelp } from '@/lib/labels';
+import { pricingModeLabel, serviceStatus, serviceStatusHelp } from '@/lib/labels';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/providers/auth';
 
@@ -217,7 +218,15 @@ export default function ServiceDetailScreen() {
         {!clientPendingPayment ? (
           <InfoBanner
             tone={service.status === 'paused' ? 'warning' : service.status === 'completed' ? 'success' : 'info'}
-            message={isClient ? serviceStatusHelp[service.status].client : serviceStatusHelp[service.status].expert}
+            message={
+              service.status === 'quoting' && quote?.status === 'approved' && quote.total == null
+                ? isClient
+                  ? 'Tu cotización está lista. Revisa la mano de obra y los materiales, y elige cómo quieres el servicio.'
+                  : 'Xpertos aprobó tu cotización y se la presentó al cliente: está eligiendo entre solo mano de obra y todo incluido.'
+                : isClient
+                  ? serviceStatusHelp[service.status].client
+                  : serviceStatusHelp[service.status].expert
+            }
           />
         ) : null}
         {service.status === 'paused' && service.pause_reason ? <KeyValue label="Motivo de la pausa" value={service.pause_reason} /> : null}
@@ -226,7 +235,11 @@ export default function ServiceDetailScreen() {
         ) : null}
         <KeyValue label="Descripción" value={service.description} />
         <KeyValue label="Dirección" value={[service.address, service.city].filter(Boolean).join(', ')} />
-        {service.estimated_price != null ? <KeyValue label="Valor del servicio" value={formatCOP(service.estimated_price)} /> : null}
+        <KeyValue label="Modalidad" value={service.pricing_mode ? pricingModeLabel(service.pricing_mode) : 'Se elige al presentar la cotización'} />
+        {/* El valor existe cuando el cliente ya eligió la opción de la cotización. */}
+        {service.estimated_price != null && APPROVED_STATUSES.includes(service.status) ? (
+          <KeyValue label="Valor del servicio" value={formatCOP(service.estimated_price)} />
+        ) : null}
         {service.scheduled_at && ['assigned', 'quoting'].includes(service.status) ? (
           <KeyValue label="Visita acordada" value={formatDateTime(service.scheduled_at)} />
         ) : null}
@@ -347,6 +360,15 @@ export default function ServiceDetailScreen() {
         <PayoutFrequencySection service={service} userId={userId} onChanged={load} />
       ) : null}
 
+      {isClient && quote && service.status === 'quoting' && quote.status === 'approved' && quote.total == null ? (
+        <>
+          <SectionTitle>Tu cotización está lista</SectionTitle>
+          <Card style={styles.card}>
+            <QuoteOptions serviceId={service.id} quote={quote} items={detail.items} materials={detail.materials} onChosen={load} />
+          </Card>
+        </>
+      ) : null}
+
       {isClient && quote && APPROVED_STATUSES.includes(service.status) ? (
         <>
           <SectionTitle>Cotización aprobada</SectionTitle>
@@ -356,15 +378,18 @@ export default function ServiceDetailScreen() {
         </>
       ) : null}
 
-      <StagesSection
-        service={service}
-        stages={detail.stages}
-        payments={detail.payments}
-        accounts={detail.accounts}
-        isClient={isClient}
-        userId={userId}
-        onChanged={load}
-      />
+      {/* El cobro existe desde que el cliente elige la opción de la cotización (Pendiente de pago). */}
+      {APPROVED_STATUSES.includes(service.status) ? (
+        <StagesSection
+          service={service}
+          stages={detail.stages}
+          payments={detail.payments}
+          accounts={detail.accounts}
+          isClient={isClient}
+          userId={userId}
+          onChanged={load}
+        />
+      ) : null}
 
       {hasWork && (isClient || isExpert) ? (
         <WorkLogsSection

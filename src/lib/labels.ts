@@ -37,7 +37,7 @@ export const serviceStatusHelp: Record<Enums<'service_status'>, { client: string
     expert: 'Te asignaron este servicio. Revisa el trabajo, toma fotos del antes y envía tu cotización a Xpertos.',
   },
   quoting: {
-    client: 'El experto envió la cotización y Xpertos la está revisando. Te avisaremos cuando esté lista para pago.',
+    client: 'El experto envió la cotización y Xpertos la está revisando. Te avisaremos cuando esté lista para que elijas la opción.',
     expert: 'En cotización: Xpertos está revisando tu cotización. Si hay algo por corregir te la devolverán con las notas.',
   },
   pending_payment: {
@@ -90,19 +90,24 @@ export function lifecycleIndex(status: Enums<'service_status'>): number {
 /** Estados desde los que el contrato es el de inicio ("acta de inicio") y se puede descargar. */
 export const startedStatuses: Enums<'service_status'>[] = ['scheduled', 'in_progress', 'paused', 'under_review', 'completed'];
 
-export const pricingModes: { value: Enums<'pricing_mode'>; label: string; short: string; description: string }[] = [
+/**
+ * Modalidad del servicio: la elige el cliente cuando Xpertos le presenta la cotización (mano de obra del
+ * experto + lista de materiales). El experto solo cotiza su trabajo.
+ */
+export const pricingModes: { value: Enums<'pricing_mode'>; label: string; short: string; clientDescription: string }[] = [
   {
     value: 'labor_only',
     label: 'Solo mano de obra',
     short: 'Solo mano de obra',
-    description: 'El cliente compra los materiales que indiques. La obra inicia 2 días hábiles después del pago.',
+    clientDescription:
+      'Tú compras los materiales de la lista; nosotros ponemos al experto que llevará a cabo la actividad. La obra inicia 2 días hábiles después del pago.',
   },
   {
     value: 'all_inclusive',
     label: 'Todo incluido (materiales + mano de obra)',
     short: 'Todo incluido',
-    description:
-      'Todo va por nuestra cuenta: los materiales y el experto que llevará a cabo la actividad que requieras. Xpertos define el valor de los materiales y la obra inicia 5 días hábiles después del pago.',
+    clientDescription:
+      'Todo va por nuestra cuenta: los materiales y el experto que llevará a cabo la actividad que requieras. La obra inicia 5 días hábiles después del pago.',
   },
 ];
 
@@ -255,7 +260,8 @@ export const eventLabels: Record<string, string> = {
   assigned: 'Experto asignado',
   stage_created: 'Cobro creado',
   quote_submitted: 'Cotización enviada',
-  quote_approved: 'Cotización aprobada',
+  quote_presented: 'Cotización presentada al cliente',
+  quote_approved: 'Opción elegida por el cliente',
   quote_returned: 'Cotización devuelta',
   payment_submitted: 'Comprobante enviado',
   payment_verified: 'Pago verificado',

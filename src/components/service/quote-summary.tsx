@@ -23,8 +23,10 @@ function qty(value: number): string {
 
 /** Resumen de la cotización en solo lectura. */
 export function QuoteSummary({ quote, items, materials, audience, commissionPct, showStatus }: Props) {
-  const allInclusive = quote.pricing_mode === 'all_inclusive';
   const approved = quote.status === 'approved';
+  // Presentada al cliente con dos opciones: aún no elige (no hay total).
+  const choosing = approved && quote.total == null;
+  const allInclusive = approved && !choosing && quote.pricing_mode === 'all_inclusive';
   const labor = approved ? Number(quote.approved_labor_total ?? quote.labor_total) : Number(quote.labor_total || items.reduce((s, i) => s + Number(i.line_total ?? 0), 0));
   const materialsTotal = allInclusive ? Number(quote.materials_total ?? 0) : 0;
   const total = approved ? Number(quote.total ?? labor + materialsTotal) : labor + materialsTotal;
@@ -35,7 +37,9 @@ export function QuoteSummary({ quote, items, materials, audience, commissionPct,
     <View style={styles.container}>
       <View style={styles.modeRow}>
         <View style={styles.modeChip}>
-          <Text style={styles.modeText}>{pricingModeLabel(quote.pricing_mode)}</Text>
+          <Text style={styles.modeText}>
+            {approved && !choosing ? pricingModeLabel(quote.pricing_mode) : choosing ? 'El cliente está eligiendo la modalidad' : 'Modalidad: la elige el cliente'}
+          </Text>
         </View>
         {showStatus ? <Badge label={status.label} tone={status.tone} /> : null}
       </View>
@@ -63,7 +67,9 @@ export function QuoteSummary({ quote, items, materials, audience, commissionPct,
         </View>
       ))}
 
-      <Text style={styles.label}>Materiales {allInclusive ? '(los suministra el experto)' : '(los compra el cliente)'}</Text>
+      <Text style={styles.label}>
+        Materiales {approved && !choosing ? (allInclusive ? '(los cubre Xpertos)' : '(los compra el cliente)') : '(el cliente decide)'}
+      </Text>
       {materials.length === 0 ? <Text style={styles.muted}>Sin materiales listados.</Text> : null}
       {materials.map((m) => (
         <View key={m.id} style={styles.row}>
@@ -89,7 +95,16 @@ export function QuoteSummary({ quote, items, materials, audience, commissionPct,
       <View style={styles.totals}>
         <TotalRow label={approved ? 'Mano de obra (aprobada)' : 'Mano de obra'} value={formatCOP(labor)} />
         {allInclusive ? <TotalRow label="Materiales" value={approved ? formatCOP(materialsTotal) : 'Lo asigna Xpertos'} /> : null}
-        <TotalRow label={audience === 'client' ? 'Total a pagar' : 'Total del servicio'} value={formatCOP(total)} strong />
+        {choosing ? (
+          <>
+            <TotalRow label="Opción solo mano de obra" value={formatCOP(quote.total_labor_only)} strong />
+            {quote.total_all_inclusive != null ? (
+              <TotalRow label="Opción todo incluido" value={formatCOP(quote.total_all_inclusive)} strong />
+            ) : null}
+          </>
+        ) : (
+          <TotalRow label={audience === 'client' ? 'Total a pagar' : 'Total del servicio'} value={formatCOP(total)} strong />
+        )}
         {audience === 'expert' && approved && net != null ? (
           <TotalRow label={`Valor neto estimado para ti (comisión ${qty(commissionPct ?? 0)} %)`} value={formatCOP(net)} />
         ) : null}
