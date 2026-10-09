@@ -62,6 +62,12 @@ export function QuoteOptions({
           <Text style={styles.label}>Mano de obra del experto</Text>
           <Text style={styles.laborValue}>{formatCOP(quote.approved_labor_total ?? quote.labor_total)}</Text>
         </View>
+        {Number(quote.client_fee_total) > 0 ? (
+          <View style={styles.laborRow}>
+            <Text style={styles.feeLabel}>Tarifa de servicio Xpertos</Text>
+            <Text style={styles.feeValue}>{formatCOP(quote.client_fee_total)}</Text>
+          </View>
+        ) : null}
         {quote.estimated_days ? (
           <Text style={styles.meta}>
             Duración estimada: {quote.estimated_days} {quote.estimated_days === 1 ? 'día hábil' : 'días hábiles'}
@@ -124,7 +130,9 @@ export function QuoteOptions({
         loading={saving}
         disabled={!chosen || saving}
       />
-      <Text style={styles.hint}>Al elegir te mostramos cómo pagar y el contrato para aceptarlo.</Text>
+      <Text style={styles.hint}>
+        Los valores incluyen la tarifa de servicio de Xpertos. Al elegir te mostramos cómo pagar y el contrato para aceptarlo.
+      </Text>
     </View>
   );
 }
@@ -136,6 +144,8 @@ const styles = StyleSheet.create({
   label: { fontSize: 12, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4, fontWeight: '700' },
   laborValue: { fontSize: 18, fontWeight: '800', color: colors.text },
   meta: { fontSize: 14, color: colors.text },
+  feeLabel: { fontSize: 14, color: colors.textMuted },
+  feeValue: { fontSize: 14, fontWeight: '700', color: colors.text },
   line: { fontSize: 14, color: colors.text, lineHeight: 20 },
   lineMeta: { fontSize: 13, color: colors.textMuted },
   muted: { fontSize: 14, color: colors.textMuted, fontStyle: 'italic' },

@@ -29,7 +29,8 @@ export function QuoteSummary({ quote, items, materials, audience, commissionPct,
   const allInclusive = approved && !choosing && quote.pricing_mode === 'all_inclusive';
   const labor = approved ? Number(quote.approved_labor_total ?? quote.labor_total) : Number(quote.labor_total || items.reduce((s, i) => s + Number(i.line_total ?? 0), 0));
   const materialsTotal = allInclusive ? Number(quote.materials_total ?? 0) : 0;
-  const total = approved ? Number(quote.total ?? labor + materialsTotal) : labor + materialsTotal;
+  const clientFee = Number(quote.client_fee_total ?? 0);
+  const total = approved ? Number(quote.total ?? labor + clientFee + materialsTotal) : labor + materialsTotal;
   // El experto cobra su mano de obra menos la comisión; los materiales (todo incluido) los compra Xpertos.
   const net = commissionPct != null ? Math.round(labor * (1 - commissionPct / 100)) : null;
   const status = quoteStatus[quote.status];
@@ -96,6 +97,7 @@ export function QuoteSummary({ quote, items, materials, audience, commissionPct,
 
       <View style={styles.totals}>
         <TotalRow label={approved ? 'Mano de obra (aprobada)' : 'Mano de obra'} value={formatCOP(labor)} />
+        {audience === 'client' && approved && clientFee > 0 ? <TotalRow label="Tarifa de servicio Xpertos" value={formatCOP(clientFee)} /> : null}
         {allInclusive ? <TotalRow label="Materiales" value={approved ? formatCOP(materialsTotal) : 'Lo asigna Xpertos'} /> : null}
         {choosing ? (
           <>
@@ -108,7 +110,10 @@ export function QuoteSummary({ quote, items, materials, audience, commissionPct,
           <TotalRow label={audience === 'client' ? 'Total a pagar' : 'Total del servicio'} value={formatCOP(total)} strong />
         )}
         {audience === 'expert' && approved && net != null ? (
-          <TotalRow label={`Valor neto estimado para ti (comisión ${qty(commissionPct ?? 0)} %)`} value={formatCOP(net)} />
+          <>
+            <TotalRow label={`Comisión Xpertos (${qty(commissionPct ?? 0)} %)`} value={`− ${formatCOP(labor - net)}`} />
+            <TotalRow label="Recibirás al finalizar el servicio" value={formatCOP(net)} strong />
+          </>
         ) : null}
       </View>
     </View>

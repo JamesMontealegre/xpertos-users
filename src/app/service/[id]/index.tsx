@@ -331,6 +331,7 @@ export default function ServiceDetailScreen() {
             ) : null}
             <Text style={styles.help}>
               Arma la cotización con las actividades, los materiales y fotos del antes. Xpertos la revisa antes de enviarla al cliente.
+              Recuerda: Xpertos descuenta el {Number(service.commission_pct)} % de tu cotización por el uso de la plataforma.
             </Text>
             <Button
               title={!quote ? 'Armar cotización' : quote.status === 'returned' ? 'Corregir cotización' : 'Continuar cotización'}

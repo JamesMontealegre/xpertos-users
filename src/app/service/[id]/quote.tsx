@@ -143,6 +143,9 @@ export default function QuoteScreen() {
   const isExpert = service.expert_id === userId;
   const editable = isExpert && service.status === 'assigned' && (!quote || quote.status === 'draft' || quote.status === 'returned');
   const laborTotal = items.reduce((sum, i) => sum + lineTotal(i), 0);
+  // Comisión por uso de la plataforma: se descuenta del valor de la cotización del experto.
+  const commissionPct = Number(service.commission_pct);
+  const commissionAmount = Math.round((laborTotal * commissionPct) / 100);
   const materialsEstimate = materials.reduce((sum, m) => sum + (Number.isFinite(parseMoney(m.estimatedCost)) ? parseMoney(m.estimatedCost) : 0), 0);
 
   if (!isExpert) {
@@ -355,6 +358,14 @@ export default function QuoteScreen() {
       {notice ? <InfoBanner tone="success" message={notice} /> : null}
 
       <InfoBanner message="Cotiza tu mano de obra y lista los materiales que necesita el trabajo. Xpertos le presenta al cliente tu cotización y él decide si compra los materiales o si los cubre Xpertos (todo incluido)." />
+      <View style={styles.commissionBox}>
+        <Ionicons name="pricetag-outline" size={18} color={colors.accent} />
+        <Text style={styles.commissionText}>
+          <Text style={styles.commissionStrong}>Comisión por uso de la plataforma: {commissionPct} % de tu cotización.</Text> Se
+          descuenta de tu pago. Por ejemplo, si cotizas {formatCOP(500000)}, recibes {formatCOP(Math.round(500000 * (1 - commissionPct / 100)))} al
+          finalizar el servicio.
+        </Text>
+      </View>
 
       <Card style={styles.card}>
         <Input
@@ -503,8 +514,16 @@ export default function QuoteScreen() {
 
       <View style={styles.totals}>
         <View style={styles.totalRow}>
-          <Text style={styles.totalLabel}>Total mano de obra</Text>
+          <Text style={styles.totalLabel}>Total de tu cotización</Text>
           <Text style={styles.totalValue}>{formatCOP(laborTotal)}</Text>
+        </View>
+        <View style={styles.totalRow}>
+          <Text style={styles.totalLabelMuted}>Comisión Xpertos ({commissionPct} %)</Text>
+          <Text style={styles.totalValueMuted}>− {formatCOP(commissionAmount)}</Text>
+        </View>
+        <View style={[styles.totalRow, styles.netRow]}>
+          <Text style={styles.totalLabel}>Recibirás al finalizar el servicio</Text>
+          <Text style={styles.netValue}>{formatCOP(laborTotal - commissionAmount)}</Text>
         </View>
         {materialsEstimate > 0 ? (
           <View style={styles.totalRow}>
@@ -512,7 +531,10 @@ export default function QuoteScreen() {
             <Text style={styles.totalValueMuted}>{formatCOP(materialsEstimate)}</Text>
           </View>
         ) : null}
-        <Text style={styles.totalHint}>Xpertos revisa los valores antes de enviarlos al cliente.</Text>
+        <Text style={styles.totalHint}>
+          Los materiales no hacen parte de tu pago. Xpertos revisa los valores antes de enviarlos al cliente; lo que recibes se
+          calcula sobre la mano de obra aprobada.
+        </Text>
       </View>
 
       <Button title="Guardar borrador" variant="outline" onPress={saveDraft} loading={saving === 'draft'} disabled={saving !== null || uploading} />
@@ -573,4 +595,18 @@ const styles = StyleSheet.create({
   totalLabelMuted: { flex: 1, fontSize: 14, color: colors.text },
   totalValueMuted: { fontSize: 15, fontWeight: '700', color: colors.text },
   totalHint: { fontSize: 12, color: colors.slate },
+  netRow: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm },
+  netValue: { fontSize: 17, fontWeight: '800', color: colors.primary },
+  commissionBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    backgroundColor: colors.accentSoft,
+  },
+  commissionText: { flex: 1, fontSize: 14, lineHeight: 20, color: colors.text },
+  commissionStrong: { fontWeight: '700' },
 });
