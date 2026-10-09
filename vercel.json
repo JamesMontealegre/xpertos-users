@@ -2,12 +2,32 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "npm ci",
-  "buildCommand": "npx expo export -p web",
+  "buildCommand": "npm run build:web",
   "outputDirectory": "dist",
   "cleanUrls": true,
   "rewrites": [
-    { "source": "/service/:id/work/:date", "destination": "/service/[id]/work/[date]" },
-    { "source": "/service/:id/quote", "destination": "/service/[id]/quote" },
-    { "source": "/service/:id", "destination": "/service/[id]" }
+    {
+      "source": "/service/:id/work/:date",
+      "destination": "/service/[id]/work/[date]"
+    },
+    {
+      "source": "/service/:id/quote",
+      "destination": "/service/[id]/quote"
+    },
+    {
+      "source": "/service/:id",
+      "destination": "/service/[id]"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/version.json",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0"
+        }
+      ]
+    }
   ]
 }

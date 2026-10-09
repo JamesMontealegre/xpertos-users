@@ -17,6 +17,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NotificationBell } from '@/components/notifications/notification-bell';
 import { NotificationToast } from '@/components/notifications/notification-toast';
 import { Loading } from '@/components/ui/screen';
+import { UpdateWatcher } from '@/components/update-watcher';
 import { colors, fonts } from '@/constants/theme';
 import { AuthProvider, useAuth } from '@/providers/auth';
 import { NotificationsProvider } from '@/providers/notifications';
@@ -75,6 +76,7 @@ function RootNavigator() {
         <Stack.Screen name="notifications" options={{ title: 'Notificaciones', headerBackTitle: 'Volver', headerRight: () => null }} />
       </Stack>
       <NotificationToast />
+      <UpdateWatcher />
     </>
   );
 }

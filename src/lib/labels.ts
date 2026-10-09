@@ -101,7 +101,8 @@ export const pricingModes: { value: Enums<'pricing_mode'>; label: string; short:
     value: 'all_inclusive',
     label: 'Todo incluido (materiales + mano de obra)',
     short: 'Todo incluido',
-    description: 'Tú suministras los materiales; Xpertos asigna su valor. La obra inicia 5 días hábiles después del pago.',
+    description:
+      'Todo va por nuestra cuenta: los materiales y el experto que llevará a cabo la actividad que requieras. Xpertos define el valor de los materiales y la obra inicia 5 días hábiles después del pago.',
   },
 ];
 

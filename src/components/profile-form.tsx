@@ -10,6 +10,7 @@ import { Text } from '@/components/ui/text';
 import { colors, spacing } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { cityError, fullNameError, normalizePhone, phoneError } from '@/lib/validation';
+import { APP_VERSION } from '@/lib/version';
 import { useAuth } from '@/providers/auth';
 
 /** Formulario de datos básicos del perfil + cerrar sesión. Compartido por cliente, aspirante y experto. */
@@ -70,6 +71,7 @@ export function ProfileForm() {
         <Button title="Cambiar de vista (superadmin)" variant="outline" onPress={() => router.replace('/admin')} />
       ) : null}
       <Button title="Cerrar sesión" variant="danger" onPress={signOut} />
+      <Text style={styles.version}>Versión {APP_VERSION}</Text>
     </>
   );
 }
@@ -77,4 +79,5 @@ export function ProfileForm() {
 const styles = StyleSheet.create({
   card: { gap: spacing.md },
   email: { color: colors.textMuted, fontSize: 14 },
+  version: { color: colors.textMuted, fontSize: 12, textAlign: 'center' },
 });
