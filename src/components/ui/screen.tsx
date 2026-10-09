@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   RefreshControl,
@@ -12,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Logo } from '@/components/logo';
 import { Text } from '@/components/ui/text';
+import { XLoader } from '@/components/ui/x-loader';
 import { colors, maxContentWidth, spacing } from '@/constants/theme';
 
 type Props = {
@@ -71,8 +71,7 @@ export function Screen({ children, title, subtitle, refreshing = false, onRefres
 export function Loading({ message = 'Cargando…' }: { message?: string }) {
   return (
     <View style={styles.loading}>
-      <ActivityIndicator size="large" color={colors.primary} />
-      <Text style={styles.loadingText}>{message}</Text>
+      <XLoader message={message} />
     </View>
   );
 }
@@ -137,9 +136,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     padding: spacing.xl,
     backgroundColor: colors.background,
-  },
-  loadingText: {
-    color: colors.textMuted,
   },
   errorBanner: {
     backgroundColor: colors.dangerSoft,
