@@ -12,6 +12,7 @@ import { colors, spacing } from '@/constants/theme';
 import { homeFor } from '@/lib/home';
 import { mustChangePassword } from '@/lib/session';
 import { supabase, translateAuthError } from '@/lib/supabase';
+import { confirmPasswordError, passwordError } from '@/lib/validation';
 import { useAuth } from '@/providers/auth';
 
 /**
@@ -33,12 +34,10 @@ export default function ChangePasswordScreen() {
 
   const save = async () => {
     setError(null);
-    if (password.length < 8) {
-      setError('La contraseña debe tener al menos 8 caracteres.');
-      return;
-    }
-    if (password !== confirm) {
-      setError('Las contraseñas no coinciden.');
+    // Mismas reglas que el registro.
+    const invalid = passwordError(password) ?? confirmPasswordError(password, confirm);
+    if (invalid) {
+      setError(invalid);
       return;
     }
     setSaving(true);
@@ -68,7 +67,7 @@ export default function ChangePasswordScreen() {
             secureTextEntry
             autoComplete="new-password"
             textContentType="newPassword"
-            placeholder="Mínimo 8 caracteres"
+            placeholder="Mínimo 8 caracteres, con letras y números"
           />
           <Input
             label="Confirma la contraseña"

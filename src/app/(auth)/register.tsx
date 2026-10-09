@@ -10,38 +10,67 @@ import { ErrorBanner, Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { colors, spacing } from '@/constants/theme';
 import { supabase, translateAuthError } from '@/lib/supabase';
+import {
+  PASSWORD_MIN_LENGTH,
+  cityError,
+  confirmPasswordError,
+  emailError,
+  fullNameError,
+  normalizePhone,
+  passwordError,
+  phoneError,
+} from '@/lib/validation';
 
 /** Los expertos no se registran aquí: se postulan en la landing y reciben su acceso por correo. */
 const WORK_WITH_US_URL = `${process.env.EXPO_PUBLIC_SITE_URL ?? 'https://xpertos.com.co'}/#trabaja-con-nosotros`;
 
+type Field = 'fullName' | 'email' | 'phone' | 'city' | 'password' | 'confirm';
+type Values = Record<Field, string>;
+
+function validate(v: Values): Partial<Record<Field, string>> {
+  const errors: Partial<Record<Field, string | null>> = {
+    fullName: fullNameError(v.fullName),
+    email: emailError(v.email),
+    phone: phoneError(v.phone),
+    city: cityError(v.city),
+    password: passwordError(v.password),
+    confirm: confirmPasswordError(v.password, v.confirm),
+  };
+  return Object.fromEntries(Object.entries(errors).filter(([, message]) => message)) as Partial<Record<Field, string>>;
+}
+
 export default function RegisterScreen() {
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [city, setCity] = useState('');
-  const [password, setPassword] = useState('');
+  const [values, setValues] = useState<Values>({ fullName: '', email: '', phone: '', city: '', password: '', confirm: '' });
+  // Los errores de un campo se muestran al salir de él o al intentar crear la cuenta.
+  const [touched, setTouched] = useState<Partial<Record<Field, boolean>>>({});
+  const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const errors = validate(values);
+  const hasErrors = Object.keys(errors).length > 0;
+  const fieldError = (field: Field) => ((submitted || touched[field]) && errors[field]) || null;
+  const field = (name: Field) => ({
+    value: values[name],
+    onChangeText: (text: string) => setValues((v) => ({ ...v, [name]: text })),
+    onBlur: () => setTouched((t) => ({ ...t, [name]: true })),
+    error: fieldError(name),
+  });
+
   const submit = async () => {
     setError(null);
-    if (!fullName.trim() || !email.trim() || !password) {
-      setError('Nombre, correo y contraseña son obligatorios.');
-      return;
-    }
-    if (password.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres.');
-      return;
-    }
+    setSubmitted(true);
+    if (hasErrors) return;
     setLoading(true);
+    // "Confirmar contraseña" solo valida el formulario: no se envía.
     const { error: authError } = await supabase.auth.signUp({
-      email: email.trim().toLowerCase(),
-      password,
+      email: values.email.trim().toLowerCase(),
+      password: values.password,
       options: {
         data: {
-          full_name: fullName.trim(),
-          phone: phone.trim() || null,
-          city: city.trim() || null,
+          full_name: values.fullName.trim().replace(/\s+/g, ' '),
+          phone: normalizePhone(values.phone),
+          city: values.city.trim(),
         },
       },
     });
@@ -59,36 +88,42 @@ export default function RegisterScreen() {
         <Brand tagline="Crea tu cuenta en Xpertos" />
         <Card style={styles.card}>
           <Text style={styles.title}>Registro</Text>
-          <ErrorBanner message={error} />
+          <ErrorBanner message={error ?? (submitted && hasErrors ? 'Revisa los campos marcados en rojo.' : null)} />
 
-          <Text style={styles.help}>Crea tu cuenta para solicitar servicios para tu hogar u obra.</Text>
+          <Text style={styles.help}>Crea tu cuenta para solicitar servicios para tu hogar u obra. Todos los campos son obligatorios.</Text>
 
-          <Input label="Nombre completo" value={fullName} onChangeText={setFullName} autoComplete="name" placeholder="Ana Pérez" />
+          <Input label="Nombre completo" {...field('fullName')} autoComplete="name" placeholder="Ana Pérez" />
           <Input
             label="Correo electrónico"
-            value={email}
-            onChangeText={setEmail}
+            {...field('email')}
             autoCapitalize="none"
             autoComplete="email"
             keyboardType="email-address"
             placeholder="tu@correo.com"
           />
           <Input
-            label="Teléfono"
-            value={phone}
-            onChangeText={setPhone}
+            label="Celular"
+            {...field('phone')}
+            onChangeText={(text) => setValues((v) => ({ ...v, phone: text.replace(/[^\d\s+-]/g, '') }))}
             keyboardType="phone-pad"
             autoComplete="tel"
-            placeholder="300 000 0000"
+            placeholder="300 123 4567"
+            maxLength={16}
           />
-          <Input label="Ciudad" value={city} onChangeText={setCity} placeholder="Bogotá" />
+          <Input label="Ciudad" {...field('city')} placeholder="Bogotá" />
           <Input
             label="Contraseña"
-            value={password}
-            onChangeText={setPassword}
+            {...field('password')}
             secureTextEntry
             autoComplete="new-password"
-            placeholder="Mínimo 6 caracteres"
+            hint={`Mínimo ${PASSWORD_MIN_LENGTH} caracteres, con letras y números.`}
+          />
+          <Input
+            label="Confirmar contraseña"
+            {...field('confirm')}
+            secureTextEntry
+            autoComplete="new-password"
+            placeholder="Escríbela de nuevo"
             onSubmitEditing={submit}
           />
           <Button title="Crear cuenta" onPress={submit} loading={loading} />

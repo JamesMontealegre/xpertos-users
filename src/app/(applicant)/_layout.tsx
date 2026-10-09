@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router/js-tabs';
 
-import { TabIcon, tabBarOptions } from '@/components/tab-icon';
+import { TabIcon, useTabBarOptions } from '@/components/tab-icon';
 import { useRoleGuard } from '@/hooks/use-role-guard';
 
 // Sin index en este grupo: las rutas deben ser únicas entre grupos.
@@ -9,6 +9,7 @@ export const unstable_settings = { initialRouteName: 'application' };
 /** Panel del aspirante a experto: solo postulación y perfil, sin solicitar servicios. */
 export default function ApplicantLayout() {
   const guard = useRoleGuard(['client', 'admin'], { applicant: true });
+  const tabBarOptions = useTabBarOptions();
   if (guard) return guard;
 
   return (

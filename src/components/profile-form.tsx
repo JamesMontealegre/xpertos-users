@@ -9,6 +9,7 @@ import { ErrorBanner, InfoBanner } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { colors, spacing } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
+import { cityError, fullNameError, normalizePhone, phoneError } from '@/lib/validation';
 import { useAuth } from '@/providers/auth';
 
 /** Formulario de datos básicos del perfil + cerrar sesión. Compartido por cliente, aspirante y experto. */
@@ -20,19 +21,22 @@ export function ProfileForm() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  // Mismas reglas que el registro; los errores aparecen al intentar guardar.
+  const errors = { fullName: fullNameError(fullName), phone: phoneError(phone), city: cityError(city) };
+  const hasErrors = Object.values(errors).some(Boolean);
 
   const save = async () => {
     if (!session) return;
     setError(null);
     setSaved(false);
-    if (!fullName.trim()) {
-      setError('El nombre no puede estar vacío.');
-      return;
-    }
+    setSubmitted(true);
+    if (hasErrors) return;
     setSaving(true);
     const { error: updateError } = await supabase
       .from('profiles')
-      .update({ full_name: fullName.trim(), phone: phone.trim() || null, city: city.trim() || null })
+      .update({ full_name: fullName.trim().replace(/\s+/g, ' '), phone: normalizePhone(phone), city: city.trim() })
       .eq('id', session.user.id);
     setSaving(false);
     if (updateError) {
@@ -49,9 +53,17 @@ export function ProfileForm() {
         <Text style={styles.email}>{profile?.email ?? session?.user.email}</Text>
         <ErrorBanner message={error} />
         {saved ? <InfoBanner tone="success" message="Perfil actualizado." /> : null}
-        <Input label="Nombre completo" value={fullName} onChangeText={setFullName} />
-        <Input label="Teléfono" value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="300 000 0000" />
-        <Input label="Ciudad" value={city} onChangeText={setCity} placeholder="Bogotá" />
+        <Input label="Nombre completo" value={fullName} onChangeText={setFullName} error={submitted ? errors.fullName : null} />
+        <Input
+          label="Celular"
+          value={phone}
+          onChangeText={(text) => setPhone(text.replace(/[^\d\s+-]/g, ''))}
+          keyboardType="phone-pad"
+          placeholder="300 123 4567"
+          maxLength={16}
+          error={submitted ? errors.phone : null}
+        />
+        <Input label="Ciudad" value={city} onChangeText={setCity} placeholder="Bogotá" error={submitted ? errors.city : null} />
         <Button title="Guardar cambios" onPress={save} loading={saving} />
       </Card>
       {profile?.role === 'admin' && profile.is_super_admin ? (
