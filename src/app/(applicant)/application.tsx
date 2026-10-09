@@ -13,7 +13,7 @@ import { Select } from '@/components/ui/select';
 import { Text } from '@/components/ui/text';
 import { colors, spacing } from '@/constants/theme';
 import type { Enums, Tables } from '@/lib/database.types';
-import { formatDateTime } from '@/lib/format';
+import { daysUntil, formatDate, formatDateTime } from '@/lib/format';
 import {
   applicationStatus,
   availableDocumentKinds,
@@ -27,6 +27,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { safeFileName, signedUrl, timestamp, uploadFile } from '@/lib/upload';
 import { useAuth } from '@/providers/auth';
+import { useNotifications } from '@/providers/notifications';
 
 type Application = Tables<'expert_applications'>;
 type ApplicationDocument = Tables<'application_documents'>;
@@ -60,6 +61,8 @@ export default function ApplicationScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [nequiNumber, setNequiNumber] = useState('');
   const [savingPayout, setSavingPayout] = useState(false);
+  const [reapplying, setReapplying] = useState(false);
+  const { subscribe } = useNotifications();
 
   useEffect(() => {
     supabase
@@ -114,6 +117,16 @@ export default function ApplicationScreen() {
     }, [load])
   );
 
+  // Un mensaje del agente sobre la postulación (documento rechazado, aprobada, rechazada…) llega en
+  // tiempo real: se recarga para mostrar el estado nuevo sin que el aspirante tenga que refrescar.
+  useEffect(
+    () =>
+      subscribe((n) => {
+        if (n.application_id) load();
+      }),
+    [subscribe, load]
+  );
+
   const refresh = async () => {
     setRefreshing(true);
     await Promise.all([load(), refreshProfile()]);
@@ -165,7 +178,10 @@ export default function ApplicationScreen() {
   // (p. ej. recién cargada), se sugiere el siguiente tipo pendiente. Los requeridos dependen del
   // medio de pago: la certificación bancaria solo es requerida con cuenta bancaria.
   const payoutMethod = application?.payout_method ?? null;
-  const uploadedKinds = documents.map((d) => d.kind);
+  // Los documentos rechazados no cuentan: hay que subirlos de nuevo.
+  const activeDocuments = documents.filter((d) => d.status !== 'rejected');
+  const rejectedDocuments = documents.filter((d) => d.status === 'rejected');
+  const uploadedKinds = activeDocuments.map((d) => d.kind);
   const kindOptions = availableDocumentKinds(uploadedKinds, payoutMethod).map((k) => ({
     value: k.value,
     label: k.label,
@@ -262,10 +278,26 @@ export default function ApplicationScreen() {
     await load();
   };
 
+  const reapply = async () => {
+    setError(null);
+    setNotice(null);
+    setReapplying(true);
+    const { error: rpcError } = await supabase.rpc('reapply_application');
+    setReapplying(false);
+    if (rpcError) return setError(`No pudimos abrir una nueva postulación: ${rpcError.message}`);
+    setDocKind(null);
+    setNotice('Abrimos una nueva postulación con tus datos. Sube tus documentos en los próximos 15 días calendario.');
+    await load();
+  };
+
   if (application === undefined) return <Loading />;
 
   const categoryOptions = categories.map((c) => ({ value: c.id, label: c.name }));
   const canEdit = !application || application.status === 'pending' || application.status === 'needs_info';
+  const daysLeft = daysUntil(application?.expires_at);
+  const deadline = application
+    ? `${formatDate(application.expires_at)} (${daysLeft === 0 ? 'vence hoy' : daysLeft === 1 ? 'queda 1 día' : `quedan ${daysLeft} días`})`
+    : '';
   const showForm = !application || editing;
 
   return (
@@ -292,13 +324,29 @@ export default function ApplicationScreen() {
                 message="¡Ya eres experto! Toca «Actualizar mi panel» para ver tus servicios asignados."
               />
             ) : application.status === 'rejected' ? (
-              <InfoBanner tone="warning" message="Tu postulación no fue aprobada en esta ocasión." />
-            ) : application.status === 'needs_info' ? (
-              <InfoBanner tone="warning" message="Necesitamos más información. Revisa las notas y actualiza tu postulación o documentos." />
+              <>
+                <InfoBanner
+                  tone="warning"
+                  message="Tu postulación no fue aprobada. Cuando resuelvas el motivo, puedes presentar una nueva postulación."
+                />
+                {application.admin_notes ? <KeyValue label="Motivo" value={application.admin_notes} /> : null}
+              </>
+            ) : application.status === 'expired' ? (
+              <InfoBanner
+                tone="warning"
+                message={`Tu postulación venció el ${formatDate(application.expires_at)}: no se completó en 15 días calendario. Puedes presentar una nueva.`}
+              />
+            ) : application.status === 'in_review' ? (
+              <InfoBanner message="Recibimos todos tus documentos. Un agente de Xpertos está revisando tu postulación; te avisaremos por correo y en Notificaciones." />
             ) : (
-              <InfoBanner message="Estamos revisando tu postulación. Mientras tanto, asegúrate de subir tus documentos." />
+              <InfoBanner
+                tone="warning"
+                message={`Tienes hasta el ${deadline} para subir todos los requisitos. Si no completas tu postulación en ese plazo, se revocará automáticamente.`}
+              />
             )}
-            {application.admin_notes ? <KeyValue label="Notas del operador" value={application.admin_notes} /> : null}
+            {application.admin_notes && application.status !== 'rejected' ? (
+              <KeyValue label="Notas del operador" value={application.admin_notes} />
+            ) : null}
             <KeyValue
               label="Categorías"
               value={categories
@@ -311,6 +359,8 @@ export default function ApplicationScreen() {
             <KeyValue label="Enviada" value={formatDateTime(application.created_at)} />
             {application.status === 'approved' ? (
               <Button title="Actualizar mi panel" variant="outline" size="sm" onPress={refreshProfile} />
+            ) : application.status === 'rejected' || application.status === 'expired' ? (
+              <Button title="Presentar una nueva postulación" onPress={reapply} loading={reapplying} />
             ) : canEdit ? (
               <Button title="Editar postulación" variant="outline" size="sm" onPress={() => setEditing(true)} />
             ) : null}
@@ -368,10 +418,10 @@ export default function ApplicationScreen() {
                 />
               )}
             </View>
-            {documents.length === 0 ? (
+            {activeDocuments.length === 0 ? (
               <Text style={styles.muted}>Aún no has subido documentos.</Text>
             ) : (
-              documents.map((doc) => (
+              activeDocuments.map((doc) => (
                 <View key={doc.id} style={styles.docRow}>
                   <Ionicons
                     name={doc.mime_type === 'application/pdf' ? 'document-text-outline' : 'image-outline'}
@@ -392,6 +442,24 @@ export default function ApplicationScreen() {
                 </View>
               ))
             )}
+            {rejectedDocuments.length > 0 ? (
+              <View style={styles.rejectedBox}>
+                <Text style={styles.rejectedTitle}>Documentos rechazados</Text>
+                {rejectedDocuments.map((doc) => (
+                  <Pressable key={doc.id} accessibilityRole="link" style={styles.rejectedRow} onPress={() => openDocument(doc)}>
+                    <View style={styles.rejectedHead}>
+                      <Text style={styles.docKind}>{documentKindLabel(doc.kind)}</Text>
+                      <Badge label="Rechazado" tone="red" />
+                    </View>
+                    {doc.rejection_reason ? <Text style={styles.rejectedReason}>Motivo: {doc.rejection_reason}</Text> : null}
+                    <Text style={styles.docName} numberOfLines={1}>
+                      {doc.file_name}
+                    </Text>
+                  </Pressable>
+                ))}
+                {canEdit ? <Text style={styles.help}>Súbelos de nuevo corrigiendo lo indicado.</Text> : null}
+              </View>
+            ) : null}
             {canEdit ? (
               <>
                 {pendingLabels.length > 0 ? (
@@ -484,5 +552,17 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   nequiRow: { gap: spacing.xs },
+  rejectedBox: {
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.dangerSoft,
+    borderRadius: 12,
+    padding: spacing.md,
+    backgroundColor: '#FFF7F7',
+  },
+  rejectedTitle: { fontSize: 13, fontWeight: '700', color: colors.danger, textTransform: 'uppercase', letterSpacing: 0.5 },
+  rejectedRow: { gap: 2 },
+  rejectedHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
+  rejectedReason: { fontSize: 14, lineHeight: 20, color: colors.text },
   nequiInput: { flexGrow: 1 },
 });

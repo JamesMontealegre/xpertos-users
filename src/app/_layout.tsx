@@ -14,9 +14,11 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { NotificationToast } from '@/components/notifications/notification-toast';
 import { Loading } from '@/components/ui/screen';
 import { colors, fonts } from '@/constants/theme';
 import { AuthProvider, useAuth } from '@/providers/auth';
+import { NotificationsProvider } from '@/providers/notifications';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -48,25 +50,29 @@ function RootNavigator() {
   if (loading) return <Loading message="Cargando tu cuenta…" />;
 
   return (
-    <Stack
-      screenOptions={{
-        headerTintColor: colors.primary,
-        headerTitleStyle: { color: colors.text, fontFamily: fonts.bold },
-        headerBackTitleStyle: { fontFamily: fonts.regular },
-        headerStyle: { backgroundColor: colors.surface },
-        contentStyle: { backgroundColor: colors.background },
-      }}>
-      <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-      <Stack.Screen name="(client)" options={{ headerShown: false }} />
-      <Stack.Screen name="(applicant)" options={{ headerShown: false }} />
-      <Stack.Screen name="(expert)" options={{ headerShown: false }} />
-      <Stack.Screen name="admin" options={{ headerShown: false }} />
-      <Stack.Screen name="change-password" options={{ headerShown: false }} />
-      <Stack.Screen name="service/[id]/index" options={{ title: 'Detalle del servicio', headerBackTitle: 'Volver' }} />
-      <Stack.Screen name="service/[id]/quote" options={{ title: 'Cotización', headerBackTitle: 'Volver' }} />
-      <Stack.Screen name="service/[id]/work/[date]" options={{ title: 'Jornada', headerBackTitle: 'Volver' }} />
-    </Stack>
+    <>
+      <Stack
+        screenOptions={{
+          headerTintColor: colors.primary,
+          headerTitleStyle: { color: colors.text, fontFamily: fonts.bold },
+          headerBackTitleStyle: { fontFamily: fonts.regular },
+          headerStyle: { backgroundColor: colors.surface },
+          contentStyle: { backgroundColor: colors.background },
+        }}>
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="(client)" options={{ headerShown: false }} />
+        <Stack.Screen name="(applicant)" options={{ headerShown: false }} />
+        <Stack.Screen name="(expert)" options={{ headerShown: false }} />
+        <Stack.Screen name="admin" options={{ headerShown: false }} />
+        <Stack.Screen name="change-password" options={{ headerShown: false }} />
+        <Stack.Screen name="service/[id]/index" options={{ title: 'Detalle del servicio', headerBackTitle: 'Volver' }} />
+        <Stack.Screen name="service/[id]/quote" options={{ title: 'Cotización', headerBackTitle: 'Volver' }} />
+        <Stack.Screen name="service/[id]/work/[date]" options={{ title: 'Jornada', headerBackTitle: 'Volver' }} />
+        <Stack.Screen name="notifications" options={{ title: 'Notificaciones', headerBackTitle: 'Volver' }} />
+      </Stack>
+      <NotificationToast />
+    </>
   );
 }
 
@@ -88,8 +94,10 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ThemeProvider value={theme}>
         <AuthProvider>
-          <StatusBar style="dark" />
-          <RootNavigator />
+          <NotificationsProvider>
+            <StatusBar style="dark" />
+            <RootNavigator />
+          </NotificationsProvider>
         </AuthProvider>
       </ThemeProvider>
     </SafeAreaProvider>

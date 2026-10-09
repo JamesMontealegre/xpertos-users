@@ -166,6 +166,7 @@ export const applicationStatus: Record<Enums<'application_status'>, { label: str
   needs_info: { label: 'Falta información', tone: 'orange' },
   approved: { label: 'Aprobada', tone: 'green' },
   rejected: { label: 'Rechazada', tone: 'red' },
+  expired: { label: 'Vencida', tone: 'slate' },
 };
 
 export const contractStatus: Record<Enums<'contract_status'>, { label: string; tone: Tone }> = {

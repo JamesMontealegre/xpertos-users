@@ -122,3 +122,25 @@ export function quantityToInput(value: number | null | undefined): string {
 export function capitalizeFirst(value: string): string {
   return value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
 }
+
+/** "hace 5 min", "hace 3 h", "ayer" o la fecha corta. */
+export function formatRelative(value: string | Date): string {
+  const date = typeof value === 'string' ? new Date(value) : value;
+  const minutes = Math.floor((Date.now() - date.getTime()) / 60_000);
+  if (minutes < 1) return 'ahora';
+  if (minutes < 60) return `hace ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `hace ${hours} h`;
+  const days = Math.round((Date.parse(todayCO()) - Date.parse(date.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }))) / 86_400_000);
+  if (days === 1) return 'ayer';
+  return formatDate(date);
+}
+
+/** Días calendario (hora de Colombia) que faltan hasta `value`: 0 si vence hoy o ya pasó. */
+export function daysUntil(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const target = new Date(value);
+  if (Number.isNaN(target.getTime())) return null;
+  const diff = Date.parse(target.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })) - Date.parse(todayCO());
+  return Math.max(0, Math.round(diff / 86_400_000));
+}

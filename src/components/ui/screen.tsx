@@ -10,6 +10,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Logo } from '@/components/logo';
+import { NotificationBell } from '@/components/notifications/notification-bell';
 import { Text } from '@/components/ui/text';
 import { XLoader } from '@/components/ui/x-loader';
 import { colors, maxContentWidth, spacing } from '@/constants/theme';
@@ -22,7 +23,7 @@ type Props = {
   onRefresh?: () => void;
   /** Sin scroll (p. ej. para listas que ya hacen scroll). */
   plain?: boolean;
-  /** Añade espacio inferior para la barra de pestañas. */
+  /** Pantalla principal con barra de pestañas: añade espacio inferior y la campana de notificaciones. */
   withTabs?: boolean;
   /** Muestra el logo de Xpertos sobre el título (pantallas de inicio de cada rol). */
   brand?: boolean;
@@ -32,10 +33,13 @@ export function Screen({ children, title, subtitle, refreshing = false, onRefres
   const insets = useSafeAreaInsets();
   const header =
     title || subtitle ? (
-      <View style={styles.header}>
-        {brand ? <Logo variant="wordmark" width={160} style={styles.brand} /> : null}
-        {title ? <Text style={styles.title}>{title}</Text> : null}
-        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+      <View style={styles.headerRow}>
+        <View style={styles.header}>
+          {brand ? <Logo variant="wordmark" width={160} style={styles.brand} /> : null}
+          {title ? <Text style={styles.title}>{title}</Text> : null}
+          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+        </View>
+        {withTabs ? <NotificationBell /> : null}
       </View>
     ) : null;
 
@@ -114,9 +118,15 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     gap: spacing.md,
   },
-  header: {
-    gap: spacing.xs,
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
     marginBottom: spacing.xs,
+  },
+  header: {
+    flex: 1,
+    gap: spacing.xs,
   },
   brand: { marginBottom: spacing.sm },
   title: {
