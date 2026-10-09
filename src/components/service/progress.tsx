@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
-import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { AccessibilityInfo, Animated, Easing, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { Text } from '@/components/ui/text';
 import { colors, radius, spacing } from '@/constants/theme';
@@ -12,6 +12,47 @@ type Props = {
   /** Paso en el que se canceló (para marcarlo en rojo). */
   cancelledFrom?: Enums<'service_status'> | null;
 };
+
+/** Ciclo de 1.8 s como en el panel (step-pulse / step-beat); se detiene si el usuario pidió reducir el movimiento. */
+function useStepAnimation(enabled: boolean) {
+  const [progress] = useState(() => new Animated.Value(0));
+  const [reduceMotion, setReduceMotion] = useState(false);
+
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion).catch(() => {});
+    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+    return () => sub.remove();
+  }, []);
+
+  useEffect(() => {
+    if (!enabled || reduceMotion) return;
+    const loop = Animated.loop(
+      Animated.timing(progress, {
+        toValue: 1,
+        duration: 1800,
+        easing: Easing.bezier(0.2, 0.6, 0.4, 1),
+        useNativeDriver: Platform.OS !== 'web',
+      })
+    );
+    loop.start();
+    return () => {
+      loop.stop();
+      progress.setValue(0);
+    };
+  }, [enabled, reduceMotion, progress]);
+
+  return {
+    // Onda que se expande y se desvanece detrás del paso actual.
+    pulse: {
+      opacity: progress.interpolate({ inputRange: [0, 0.7, 1], outputRange: [reduceMotion ? 0 : 0.55, 0, 0] }),
+      transform: [{ scale: progress.interpolate({ inputRange: [0, 0.7, 1], outputRange: [1, 1.75, 1.75] }) }],
+    },
+    // Latido del círculo del paso actual.
+    beat: {
+      transform: [{ scale: progress.interpolate({ inputRange: [0, 0.15, 0.3, 0.45, 1], outputRange: [1, 1.08, 1, 1.05, 1] }) }],
+    },
+  };
+}
 
 /**
  * Barra de avance del servicio con los 8 pasos. En pantallas anchas muestra el nombre de cada paso;
@@ -28,6 +69,7 @@ export function LifecycleProgress({ status, cancelledFrom }: Props) {
   const currentColor = cancelled ? colors.danger : paused ? colors.warning : colors.primary;
   const stepLabel = (idx: number) => (idx === 5 && paused ? 'En pausa' : lifecycleSteps[idx].label);
   const next = !cancelled && current >= 0 && current < lifecycleSteps.length - 1 ? lifecycleSteps[current + 1] : null;
+  const animation = useStepAnimation(!cancelled && status !== 'completed' && current >= 0);
 
   return (
     <View style={styles.container} accessibilityLabel={`Avance del servicio: ${cancelled ? 'Cancelado' : stepLabel(current)}`}>
@@ -35,34 +77,44 @@ export function LifecycleProgress({ status, cancelledFrom }: Props) {
         {lifecycleSteps.map((step, idx) => {
           const done = !cancelled && idx < current;
           const isCurrent = idx === current;
-          const dotColor = isCurrent ? currentColor : done ? colors.primary : colors.surface;
-          const borderColor = isCurrent ? currentColor : done ? colors.primary : colors.border;
+          // Finalizado: todos los pasos quedan hechos.
+          const allDone = status === 'completed';
+          const isActive = isCurrent && !allDone;
+          const filled = done || allDone || isCurrent;
+          const dotColor = isActive ? currentColor : filled ? colors.primary : colors.surface;
+          const borderColor = isActive ? currentColor : filled ? colors.primary : colors.border;
+          // La línea hacia un paso se pinta si ese paso ya se alcanzó (como en el panel).
+          const reached = (i: number) => !cancelled && (i <= current || allDone);
           return (
             <View key={step.key} style={styles.stepCol}>
+              {/* Todos los círculos comparten el mismo centro: la línea queda continua. */}
               <View style={styles.dotRow}>
-                <View style={[styles.line, idx === 0 && styles.lineHidden, (done || isCurrent) && !cancelled && styles.lineDone]} />
-                <View
-                  style={[
-                    styles.dot,
-                    isCurrent && styles.dotCurrent,
-                    { backgroundColor: dotColor, borderColor },
-                    isCurrent && { shadowColor: currentColor },
-                  ]}>
-                  {done ? (
-                    <Ionicons name="checkmark" size={12} color="#FFFFFF" />
-                  ) : isCurrent && cancelled ? (
-                    <Ionicons name="close" size={14} color="#FFFFFF" />
-                  ) : isCurrent && paused ? (
-                    <Ionicons name="pause" size={12} color="#FFFFFF" />
-                  ) : (
-                    <Text style={[styles.dotText, isCurrent && styles.dotTextCurrent]}>{idx + 1}</Text>
-                  )}
+                <View style={[styles.line, idx === 0 && styles.lineHidden, idx > 0 && reached(idx) && styles.lineDone]} />
+                <View style={styles.dotSlot}>
+                  {isActive && !cancelled ? (
+                    <>
+                      <Animated.View pointerEvents="none" style={[styles.pulse, { backgroundColor: currentColor }, animation.pulse]} />
+                      <View pointerEvents="none" style={[styles.halo, { backgroundColor: currentColor }]} />
+                    </>
+                  ) : null}
+                  <Animated.View
+                    style={[styles.dot, { backgroundColor: dotColor, borderColor }, isActive && !cancelled && animation.beat]}>
+                    {done || (allDone && idx <= current) ? (
+                      <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+                    ) : isCurrent && cancelled ? (
+                      <Ionicons name="close" size={15} color="#FFFFFF" />
+                    ) : isCurrent && paused ? (
+                      <Ionicons name="pause" size={13} color="#FFFFFF" />
+                    ) : (
+                      <Text style={[styles.dotText, isCurrent && styles.dotTextCurrent]}>{idx + 1}</Text>
+                    )}
+                  </Animated.View>
                 </View>
                 <View
                   style={[
                     styles.line,
                     idx === lifecycleSteps.length - 1 && styles.lineHidden,
-                    done && !cancelled && styles.lineDone,
+                    idx < lifecycleSteps.length - 1 && reached(idx + 1) && styles.lineDone,
                   ]}
                 />
               </View>
@@ -125,14 +177,18 @@ export function LifecycleProgress({ status, cancelledFrom }: Props) {
   );
 }
 
-const DOT = 24;
+const DOT = 28;
+/** Alto de la fila: el círculo más su halo, para que todos los pasos queden al mismo nivel. */
+const SLOT = DOT + 10;
 
 const styles = StyleSheet.create({
   container: { gap: spacing.sm },
   track: { flexDirection: 'row', alignItems: 'flex-start' },
   stepCol: { flex: 1, alignItems: 'center', gap: 4 },
-  dotRow: { flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch' },
-  line: { flex: 1, height: 3, backgroundColor: colors.border },
+  dotRow: { flexDirection: 'row', alignItems: 'center', alignSelf: 'stretch', height: SLOT },
+  // Del ancho del círculo: la línea llega hasta su borde y el halo sobresale por encima de ella.
+  dotSlot: { width: DOT, height: SLOT, alignItems: 'center', justifyContent: 'center', zIndex: 1 },
+  line: { flex: 1, height: 2, backgroundColor: colors.border },
   lineHidden: { backgroundColor: 'transparent' },
   lineDone: { backgroundColor: colors.primary },
   dot: {
@@ -143,16 +199,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  dotCurrent: {
-    width: DOT + 6,
-    height: DOT + 6,
-    borderRadius: (DOT + 6) / 2,
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 3,
-  },
-  dotText: { fontSize: 11, fontWeight: '700', color: colors.textMuted },
+  // Halo fijo (como ring-4 del panel) y onda animada detrás del paso actual.
+  halo: { position: 'absolute', width: DOT + 8, height: DOT + 8, borderRadius: (DOT + 8) / 2, opacity: 0.2 },
+  pulse: { position: 'absolute', width: DOT, height: DOT, borderRadius: DOT / 2 },
+  dotText: { fontSize: 12, fontWeight: '700', color: colors.textMuted },
   dotTextCurrent: { color: '#FFFFFF' },
   stepLabel: { fontSize: 11, lineHeight: 14, color: colors.textMuted, textAlign: 'center', paddingHorizontal: 2 },
   stepLabelDone: { color: colors.text },
