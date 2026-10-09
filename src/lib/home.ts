@@ -4,7 +4,7 @@ import type { Profile } from '@/providers/auth';
 
 /**
  * Pantalla inicial según el tipo de cuenta. Una cuenta es cliente O aspirante/experto, nunca ambas;
- * el admin (super admin) elige la vista en /admin.
+ * el admin entra a /admin: el superadmin elige la vista y el agente ve el enlace al panel.
  *
  * Se usa una ruta absoluta y explícita: redirigir a "/" desde dentro de un grupo resuelve al
  * index de ese grupo y provoca bucles.

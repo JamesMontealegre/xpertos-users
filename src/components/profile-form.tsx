@@ -54,8 +54,8 @@ export function ProfileForm() {
         <Input label="Ciudad" value={city} onChangeText={setCity} placeholder="Bogotá" />
         <Button title="Guardar cambios" onPress={save} loading={saving} />
       </Card>
-      {profile?.role === 'admin' ? (
-        <Button title="Cambiar de vista (super admin)" variant="outline" onPress={() => router.replace('/admin')} />
+      {profile?.role === 'admin' && profile.is_super_admin ? (
+        <Button title="Cambiar de vista (superadmin)" variant="outline" onPress={() => router.replace('/admin')} />
       ) : null}
       <Button title="Cerrar sesión" variant="danger" onPress={signOut} />
     </>

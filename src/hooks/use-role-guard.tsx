@@ -9,6 +9,8 @@ import { useAuth } from '@/providers/auth';
 type Options = {
   /** Para rol client: true exige ser aspirante (con postulación); false exige NO serlo. */
   applicant?: boolean;
+  /** Deja pasar a los agentes (admin sin marca de superadmin). Solo la pantalla /admin lo usa. */
+  agents?: boolean;
 };
 
 /**
@@ -22,7 +24,9 @@ export function useRoleGuard(allowed: Enums<'user_role'>[], options: Options = {
   if (!session) return <RedirectOnce href="/(auth)/login" />;
   if (!profile) return <Loading message="Preparando tu perfil…" />;
 
-  const roleOk = allowed.includes(profile.role);
+  // Los agentes operan desde el panel web; solo el superadmin entra a las vistas de la app.
+  const isAgent = profile.role === 'admin' && !profile.is_super_admin;
+  const roleOk = allowed.includes(profile.role) && (!isAgent || options.agents === true);
   const applicantOk =
     profile.role !== 'client' || options.applicant === undefined || options.applicant === isApplicant;
 

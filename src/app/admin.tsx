@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { Brand } from '@/components/brand';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,8 @@ type ViewOption = {
   icon: React.ComponentProps<typeof Ionicons>['name'];
 };
 
+const ADMIN_PANEL_URL = process.env.EXPO_PUBLIC_ADMIN_URL ?? 'https://admin.xpertos.com.co';
+
 const VIEWS: ViewOption[] = [
   { key: 'client', title: 'Cliente', description: 'Solicitar servicios, pagar, descargar el contrato y calificar.', icon: 'home-outline' },
   { key: 'applicant', title: 'Aspirante a experto', description: 'Postulación y carga de documentos.', icon: 'document-text-outline' },
@@ -27,11 +29,12 @@ const VIEWS: ViewOption[] = [
 ];
 
 /**
- * Selector de vistas del super admin. Un administrador puede entrar a cualquier frente de la app
- * para probarlo; las cuentas normales son cliente O aspirante/experto, nunca ambas.
+ * Selector de vistas del superadmin: puede entrar a cualquier frente de la app para probarlo. Las
+ * cuentas normales son cliente O aspirante/experto, nunca ambas; los agentes ven un aviso con el
+ * enlace al panel de operación.
  */
 export default function AdminScreen() {
-  const guard = useRoleGuard(['admin']);
+  const guard = useRoleGuard(['admin'], { agents: true });
   const { signOut, profile, session } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<ViewOption['key'] | null>(null);
@@ -66,10 +69,28 @@ export default function AdminScreen() {
     }
   };
 
+  if (!profile?.is_super_admin) {
+    return (
+      <Screen>
+        <View style={styles.wrapper}>
+          <Brand tagline={`Agente · ${profile?.full_name || profile?.email || ''}`} />
+          <Card style={styles.agent}>
+            <Text style={styles.optionTitle}>Tu cuenta es de agente de operación</Text>
+            <Text style={styles.optionDescription}>
+              Las solicitudes, los servicios, los pagos y las postulaciones se gestionan en el panel de operación.
+            </Text>
+            <Button title="Abrir el panel de operación" onPress={() => Linking.openURL(ADMIN_PANEL_URL)} />
+          </Card>
+          <Button title="Cerrar sesión" variant="outline" onPress={signOut} />
+        </View>
+      </Screen>
+    );
+  }
+
   return (
     <Screen>
       <View style={styles.wrapper}>
-        <Brand tagline={`Super admin · ${profile?.full_name || profile?.email || ''}`} />
+        <Brand tagline={`Superadmin · ${profile?.full_name || profile?.email || ''}`} />
         <Text style={styles.help}>
           Elige qué frente de la app quieres probar. Para gestionar solicitudes, servicios y pagos usa el panel de administración web.
         </Text>
@@ -99,6 +120,7 @@ const styles = StyleSheet.create({
   help: { fontSize: 14, color: colors.textMuted, textAlign: 'center', lineHeight: 20 },
   option: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md },
   optionBusy: { opacity: 0.6 },
+  agent: { gap: spacing.md, padding: spacing.lg },
   icon: {
     width: 44,
     height: 44,
