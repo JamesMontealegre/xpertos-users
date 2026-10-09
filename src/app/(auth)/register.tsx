@@ -1,26 +1,20 @@
-import { Ionicons } from '@expo/vector-icons';
 import { Link } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Linking, StyleSheet, View } from 'react-native';
 
 import { Brand } from '@/components/brand';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { ErrorBanner, InfoBanner, Screen } from '@/components/ui/screen';
+import { ErrorBanner, Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { colors, spacing } from '@/constants/theme';
 import { supabase, translateAuthError } from '@/lib/supabase';
 
-type AccountType = 'client' | 'expert';
-
-const ACCOUNT_TYPES: { value: AccountType; title: string; description: string; icon: React.ComponentProps<typeof Ionicons>['name'] }[] = [
-  { value: 'client', title: 'Contratar expertos', description: 'Necesito un servicio para mi hogar u obra.', icon: 'home-outline' },
-  { value: 'expert', title: 'Trabajar como experto', description: 'Quiero postularme y recibir servicios.', icon: 'construct-outline' },
-];
+/** Los expertos no se registran aquí: se postulan en la landing y reciben su acceso por correo. */
+const WORK_WITH_US_URL = `${process.env.EXPO_PUBLIC_SITE_URL ?? 'https://xpertos.com.co'}/#trabaja-con-nosotros`;
 
 export default function RegisterScreen() {
-  const [accountType, setAccountType] = useState<AccountType>('client');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -48,8 +42,6 @@ export default function RegisterScreen() {
           full_name: fullName.trim(),
           phone: phone.trim() || null,
           city: city.trim() || null,
-          // El backend crea la postulación cuando account_type = 'expert'.
-          account_type: accountType,
         },
       },
     });
@@ -69,27 +61,7 @@ export default function RegisterScreen() {
           <Text style={styles.title}>Registro</Text>
           <ErrorBanner message={error} />
 
-          <Text style={styles.label}>¿Qué quieres hacer en Xpertos?</Text>
-          <View style={styles.types}>
-            {ACCOUNT_TYPES.map((type) => {
-              const selected = accountType === type.value;
-              return (
-                <Pressable
-                  key={type.value}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected }}
-                  onPress={() => setAccountType(type.value)}
-                  style={[styles.type, selected && styles.typeSelected]}>
-                  <Ionicons name={type.icon} size={22} color={selected ? colors.primary : colors.textMuted} />
-                  <Text style={[styles.typeTitle, selected && styles.typeTitleSelected]}>{type.title}</Text>
-                  <Text style={styles.typeDescription}>{type.description}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          {accountType === 'expert' ? (
-            <InfoBanner message="Después de registrarte completarás tu postulación y subirás tus documentos. Un operador la revisará antes de activarte como experto." />
-          ) : null}
+          <Text style={styles.help}>Crea tu cuenta para solicitar servicios para tu hogar u obra.</Text>
 
           <Input label="Nombre completo" value={fullName} onChangeText={setFullName} autoComplete="name" placeholder="Ana Pérez" />
           <Input
@@ -126,6 +98,12 @@ export default function RegisterScreen() {
               Ingresa
             </Link>
           </Text>
+          <Text style={styles.footer}>
+            ¿Quieres trabajar como experto?{' '}
+            <Text accessibilityRole="link" style={styles.link} onPress={() => Linking.openURL(WORK_WITH_US_URL)}>
+              Postúlate aquí
+            </Text>
+          </Text>
         </Card>
       </View>
     </Screen>
@@ -150,21 +128,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: colors.text,
   },
-  label: { fontSize: 14, fontWeight: '600', color: colors.text },
-  types: { flexDirection: 'row', gap: spacing.sm },
-  type: {
-    flex: 1,
-    gap: spacing.xs,
-    padding: spacing.md,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-  },
-  typeSelected: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
-  typeTitle: { fontSize: 14, fontWeight: '700', color: colors.text },
-  typeTitleSelected: { color: colors.primaryHover },
-  typeDescription: { fontSize: 12, color: colors.textMuted, lineHeight: 16 },
+  help: { fontSize: 14, color: colors.textMuted, lineHeight: 20 },
   footer: {
     textAlign: 'center',
     color: colors.textMuted,
