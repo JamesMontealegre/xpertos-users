@@ -8,11 +8,13 @@ import { Button } from '@/components/ui/button';
 import { Card, KeyValue, SectionTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
+import { TimeInput } from '@/components/ui/masked-input';
 import { ErrorBanner, InfoBanner, Loading, Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { colors, spacing } from '@/constants/theme';
 import type { Tables } from '@/lib/database.types';
 import { capitalizeFirst, formatPlainDate, formatTime, isValidDate, isValidTime, nowTimeCO, todayCO } from '@/lib/format';
+import { completeTime } from '@/lib/masks';
 import { pickImages, removeServicePhoto, takePhoto, uploadServicePhoto } from '@/lib/photos';
 import { supabase } from '@/lib/supabase';
 import type { LocalFile } from '@/lib/upload';
@@ -93,10 +95,13 @@ export default function WorkDayScreen() {
 
   /** Guarda (crea o actualiza) la jornada con los valores del formulario. */
   const saveLog = async (): Promise<WorkLog> => {
-    if (checkIn && !isValidTime(checkIn)) throw new Error('La hora de ingreso debe tener el formato HH:MM (p. ej. 08:00).');
-    if (checkOut && !isValidTime(checkOut)) throw new Error('La hora de salida debe tener el formato HH:MM (p. ej. 17:00).');
-    if (checkOut && !checkIn) throw new Error('Indica primero la hora de ingreso.');
-    if (checkIn && checkOut && checkOut <= checkIn) throw new Error('La hora de salida debe ser posterior a la de ingreso.');
+    // Por si se guarda sin salir del campo de la hora ("8" → "08:00").
+    const checkInTime = completeTime(checkIn);
+    const checkOutTime = completeTime(checkOut);
+    if (checkInTime && !isValidTime(checkInTime)) throw new Error('La hora de ingreso debe tener el formato HH:MM (p. ej. 08:00).');
+    if (checkOutTime && !isValidTime(checkOutTime)) throw new Error('La hora de salida debe tener el formato HH:MM (p. ej. 17:00).');
+    if (checkOutTime && !checkInTime) throw new Error('Indica primero la hora de ingreso.');
+    if (checkInTime && checkOutTime && checkOutTime <= checkInTime) throw new Error('La hora de salida debe ser posterior a la de ingreso.');
     const { data, error: upsertError } = await supabase
       .from('work_logs')
       .upsert(
@@ -104,8 +109,8 @@ export default function WorkDayScreen() {
           service_id: service.id,
           expert_id: userId,
           work_date: date,
-          check_in: checkIn || null,
-          check_out: checkOut || null,
+          check_in: checkInTime || null,
+          check_out: checkOutTime || null,
           notes: notes.trim() || null,
         },
         { onConflict: 'service_id,work_date' }
@@ -193,11 +198,11 @@ export default function WorkDayScreen() {
           <>
             <View style={styles.timeRow}>
               <View style={styles.timeCol}>
-                <Input label="Hora de ingreso" value={checkIn} onChangeText={setCheckIn} placeholder="08:00" maxLength={5} />
+                <TimeInput label="Hora de ingreso" value={checkIn} onChangeText={setCheckIn} placeholder="08:00" />
                 <Button title="Ahora" variant="ghost" size="sm" onPress={() => setCheckIn(nowTimeCO())} />
               </View>
               <View style={styles.timeCol}>
-                <Input label="Hora de salida" value={checkOut} onChangeText={setCheckOut} placeholder="17:00" maxLength={5} />
+                <TimeInput label="Hora de salida" value={checkOut} onChangeText={setCheckOut} placeholder="17:00" />
                 <Button title="Ahora" variant="ghost" size="sm" onPress={() => setCheckOut(nowTimeCO())} />
               </View>
             </View>

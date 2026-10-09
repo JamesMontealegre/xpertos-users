@@ -7,12 +7,14 @@ import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { Button } from '@/components/ui/button';
 import { Card, SectionTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { DateInput, TimeInput } from '@/components/ui/masked-input';
 import { ErrorBanner, InfoBanner, Screen } from '@/components/ui/screen';
 import { Select } from '@/components/ui/select';
 import { Text } from '@/components/ui/text';
 import { colors, radius, spacing } from '@/constants/theme';
 import type { Tables } from '@/lib/database.types';
 import { formatPlainDate, isValidDate, isValidTime } from '@/lib/format';
+import { completeTime } from '@/lib/masks';
 import { supabase } from '@/lib/supabase';
 import { extensionForMime, timestamp, uploadFile } from '@/lib/upload';
 import { useAuth } from '@/providers/auth';
@@ -54,7 +56,10 @@ export default function NewServiceScreen() {
 
   const addSlot = () => {
     setSlotError(null);
-    const { date, from, to } = slotDraft;
+    // Por si se toca "Agregar franja" sin salir del campo de la hora ("8" → "08:00").
+    const date = slotDraft.date;
+    const from = completeTime(slotDraft.from);
+    const to = completeTime(slotDraft.to);
     if (!isValidDate(date)) return setSlotError('La fecha debe tener el formato AAAA-MM-DD (p. ej. 2026-10-20).');
     if (!isValidTime(from) || !isValidTime(to)) return setSlotError('Las horas deben tener el formato HH:mm (p. ej. 08:00).');
     if (from >= to) return setSlotError('La hora final debe ser posterior a la inicial.');
@@ -186,22 +191,20 @@ export default function NewServiceScreen() {
           </View>
         ))}
         <View style={styles.slotInputs}>
-          <Input
+          <DateInput
             label="Fecha"
-            placeholder="AAAA-MM-DD"
             value={slotDraft.date}
             onChangeText={(date) => setSlotDraft((s) => ({ ...s, date }))}
             containerStyle={styles.slotDate}
-            autoCapitalize="none"
           />
-          <Input
+          <TimeInput
             label="Desde"
             placeholder="08:00"
             value={slotDraft.from}
             onChangeText={(from) => setSlotDraft((s) => ({ ...s, from }))}
             containerStyle={styles.slotTime}
           />
-          <Input
+          <TimeInput
             label="Hasta"
             placeholder="12:00"
             value={slotDraft.to}

@@ -5,13 +5,14 @@ import { Pressable, StyleSheet, Switch, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
 import { Card, SectionTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { TimeInput } from '@/components/ui/masked-input';
 import { ErrorBanner, Loading, Screen } from '@/components/ui/screen';
 import { Select } from '@/components/ui/select';
 import { Text } from '@/components/ui/text';
 import { colors, radius, spacing } from '@/constants/theme';
 import type { Tables } from '@/lib/database.types';
 import { formatTime, isValidTime } from '@/lib/format';
+import { completeTime } from '@/lib/masks';
 import { weekdays } from '@/lib/labels';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/providers/auth';
@@ -78,14 +79,17 @@ export default function AvailabilityScreen() {
   const addSlot = async () => {
     if (!session) return;
     setError(null);
-    if (!isValidTime(draft.start) || !isValidTime(draft.end)) return setError('Las horas deben tener el formato HH:mm (p. ej. 08:00).');
-    if (draft.start >= draft.end) return setError('La hora final debe ser posterior a la inicial.');
+    // Por si se toca "Agregar franja" sin salir del campo de la hora ("8" → "08:00").
+    const start = completeTime(draft.start);
+    const end = completeTime(draft.end);
+    if (!isValidTime(start) || !isValidTime(end)) return setError('Las horas deben tener el formato HH:mm (p. ej. 08:00).');
+    if (start >= end) return setError('La hora final debe ser posterior a la inicial.');
     setSaving(true);
     const { error: insertError } = await supabase.from('expert_availability').insert({
       expert_id: session.user.id,
       weekday: Number(draft.weekday),
-      start_time: draft.start,
-      end_time: draft.end,
+      start_time: start,
+      end_time: end,
     });
     setSaving(false);
     if (insertError) return setError(`No se pudo agregar la franja: ${insertError.message}`);
@@ -143,14 +147,14 @@ export default function AvailabilityScreen() {
       <Card style={styles.card}>
         <Select label="Día" options={weekdayOptions} value={draft.weekday} onChange={(weekday) => setDraft((d) => ({ ...d, weekday }))} />
         <View style={styles.timeRow}>
-          <Input
+          <TimeInput
             label="Desde"
             placeholder="08:00"
             value={draft.start}
             onChangeText={(start) => setDraft((d) => ({ ...d, start }))}
             containerStyle={styles.timeInput}
           />
-          <Input
+          <TimeInput
             label="Hasta"
             placeholder="17:00"
             value={draft.end}
