@@ -107,7 +107,7 @@ export const pricingModes: { value: Enums<'pricing_mode'>; label: string; short:
     label: 'Todo incluido (materiales + mano de obra)',
     short: 'Todo incluido',
     clientDescription:
-      'Todo va por nuestra cuenta: los materiales y el experto que llevará a cabo la actividad que requieras. La obra inicia 5 días hábiles después del pago.',
+      'Todo va por nuestra cuenta: los materiales, que llevamos al lugar del servicio, y el experto que llevará a cabo la actividad que requieras. La obra inicia 5 días hábiles después del pago.',
   },
 ];
 

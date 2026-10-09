@@ -37,7 +37,7 @@ export function ScheduleCard({ service, schedule }: Props) {
         </View>
         <Text style={styles.text}>
           La obra inicia {schedule?.start_offset_days ?? 2} días hábiles después de que Xpertos verifique el pago
-          {schedule?.pricing_mode === 'all_inclusive' ? ' (tiempo para comprar los materiales).' : '.'}
+          {schedule?.pricing_mode === 'all_inclusive' ? ' (tiempo para que Xpertos compre los materiales y los lleve al lugar).' : '.'}
         </Text>
         <View style={styles.ruleSoft}>
           <Ionicons name="information-circle-outline" size={16} color={colors.primary} />

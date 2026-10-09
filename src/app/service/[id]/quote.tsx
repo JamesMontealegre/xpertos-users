@@ -432,7 +432,7 @@ export default function QuoteScreen() {
 
       <SectionTitle>Materiales</SectionTitle>
       <Text style={styles.help}>
-        Lista los materiales con un costo estimado. Si el cliente elige solo mano de obra, los compra él antes del inicio; si elige todo incluido, Xpertos define su valor.
+        Lista los materiales con un costo estimado. Si el cliente elige solo mano de obra, los compra él antes del inicio; si elige todo incluido, Xpertos los compra y los lleva al lugar del servicio. Tú solo respondes por tu mano de obra.
       </Text>
       {materials.map((m, idx) => (
         <Card key={m.key} style={styles.card}>

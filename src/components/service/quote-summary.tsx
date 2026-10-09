@@ -30,7 +30,8 @@ export function QuoteSummary({ quote, items, materials, audience, commissionPct,
   const labor = approved ? Number(quote.approved_labor_total ?? quote.labor_total) : Number(quote.labor_total || items.reduce((s, i) => s + Number(i.line_total ?? 0), 0));
   const materialsTotal = allInclusive ? Number(quote.materials_total ?? 0) : 0;
   const total = approved ? Number(quote.total ?? labor + materialsTotal) : labor + materialsTotal;
-  const net = commissionPct != null ? Math.round(labor * (1 - commissionPct / 100) + materialsTotal) : null;
+  // El experto cobra su mano de obra menos la comisión; los materiales (todo incluido) los compra Xpertos.
+  const net = commissionPct != null ? Math.round(labor * (1 - commissionPct / 100)) : null;
   const status = quoteStatus[quote.status];
 
   return (
@@ -68,7 +69,8 @@ export function QuoteSummary({ quote, items, materials, audience, commissionPct,
       ))}
 
       <Text style={styles.label}>
-        Materiales {approved && !choosing ? (allInclusive ? '(los cubre Xpertos)' : '(los compra el cliente)') : '(el cliente decide)'}
+        Materiales{' '}
+        {approved && !choosing ? (allInclusive ? '(Xpertos los compra y los lleva al lugar)' : '(los compra el cliente)') : '(el cliente decide)'}
       </Text>
       {materials.length === 0 ? <Text style={styles.muted}>Sin materiales listados.</Text> : null}
       {materials.map((m) => (
