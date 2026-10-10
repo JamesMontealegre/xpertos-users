@@ -83,7 +83,9 @@ export function QuoteSummary({ quote, items, materials, audience, commissionPct,
             </Text>
           </View>
           {audience === 'expert' && m.estimated_cost != null ? (
-            <Text style={styles.rowAmountMuted}>≈ {formatCOP(m.estimated_cost)}</Text>
+            <Text style={styles.rowAmountMuted}>≈ {formatCOP(m.estimated_cost)} c/u</Text>
+          ) : audience === 'client' && allInclusive && m.line_total != null ? (
+            <Text style={styles.rowAmount}>{formatCOP(m.line_total)}</Text>
           ) : null}
         </View>
       ))}

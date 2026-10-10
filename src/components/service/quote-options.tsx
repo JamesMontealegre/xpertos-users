@@ -92,11 +92,19 @@ export function QuoteOptions({
               <Text style={styles.lineMeta}>
                 {' · '}
                 {qty(m.quantity)} {m.unit}
+                {m.unit_price != null ? ` × ${formatCOP(m.unit_price)}` : ''}
                 {m.notes ? ` · ${m.notes}` : ''}
               </Text>
             </Text>
+            {m.line_total != null ? <Text style={styles.materialPrice}>{formatCOP(m.line_total)}</Text> : null}
           </View>
         ))}
+        {materials.some((m) => m.line_total != null) ? (
+          <View style={styles.laborRow}>
+            <Text style={styles.materialsTotalLabel}>Valor de los materiales (opción todo incluido)</Text>
+            <Text style={styles.materialPrice}>{formatCOP(quote.materials_total)}</Text>
+          </View>
+        ) : null}
       </View>
 
       <Text style={styles.question}>¿Cómo quieres el servicio?</Text>
@@ -153,6 +161,8 @@ const styles = StyleSheet.create({
   muted: { fontSize: 14, color: colors.textMuted, fontStyle: 'italic' },
   material: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
   materialText: { flex: 1, fontSize: 14, color: colors.text, lineHeight: 20 },
+  materialPrice: { fontSize: 14, fontWeight: '700', color: colors.text },
+  materialsTotalLabel: { flex: 1, fontSize: 13, color: colors.textMuted },
   question: { fontSize: 16, fontWeight: '800', color: colors.text },
   options: { gap: spacing.sm },
   option: {

@@ -196,7 +196,12 @@ export default function QuoteScreen() {
   // Comisión por uso de la plataforma: se descuenta del valor de la cotización del experto.
   const commissionPct = Number(service.commission_pct);
   const commissionAmount = Math.round((laborTotal * commissionPct) / 100);
-  const materialsEstimate = materials.reduce((sum, m) => sum + (Number.isFinite(parseMoney(m.estimatedCost)) ? parseMoney(m.estimatedCost) : 0), 0);
+  // Costo estimado por unidad × cantidad (informativo: el valor que ve el cliente lo fija Xpertos).
+  const materialsEstimate = materials.reduce((sum, m) => {
+    const unit = parseMoney(m.estimatedCost);
+    const q = parseQuantity(m.quantity);
+    return sum + (Number.isFinite(unit) && Number.isFinite(q) ? unit * q : 0);
+  }, 0);
 
   if (!isExpert) {
     return (
@@ -573,12 +578,16 @@ export default function QuoteScreen() {
             </View>
           </View>
           <Input
-            label="Costo estimado (sugerido)"
+            label="Costo estimado por unidad (sugerido)"
             value={m.estimatedCost}
             onChangeText={(estimatedCost) => updateMaterial(m.key, { estimatedCost: estimatedCost.replace(/\D/g, '') })}
             keyboardType="number-pad"
             placeholder="Ej. 20000"
-            hint={m.estimatedCost ? `${formatCOP(parseMoney(m.estimatedCost))} en total para este material` : 'Valor total estimado de este material.'}
+            hint={
+              m.estimatedCost && Number.isFinite(parseQuantity(m.quantity))
+                ? `${formatCOP(parseMoney(m.estimatedCost))} por ${m.unit} · ${formatCOP(Math.round(parseMoney(m.estimatedCost) * parseQuantity(m.quantity)))} en total`
+                : 'Valor estimado por unidad. Es solo una referencia para Xpertos.'
+            }
           />
           <Input label="Notas" value={m.notes} onChangeText={(v) => updateMaterial(m.key, { notes: v })} placeholder="Marca, referencia, color…" />
         </Card>
