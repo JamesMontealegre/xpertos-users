@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRef, useState, type ComponentProps } from 'react';
+import { useState } from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { ContractSection } from '@/components/service/contract';
@@ -11,12 +11,13 @@ import { ReviewSection } from '@/components/service/review';
 import { ScheduleCard } from '@/components/service/schedule';
 import { StagesSection } from '@/components/service/stages';
 import { Timeline } from '@/components/service/timeline';
+import { daysLabel, Facts, NextSteps, SectionList, Step, useSections, type SectionSpec } from '@/components/service/sections';
 import { WorkLogsSection } from '@/components/service/work-logs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { KeyValue } from '@/components/ui/card';
 import { Collapsible } from '@/components/ui/collapsible';
-import { InfoBanner, useScreenScroll } from '@/components/ui/screen';
+import { InfoBanner } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { colors, radius, spacing } from '@/constants/theme';
 import type { Enums } from '@/lib/database.types';
@@ -25,7 +26,6 @@ import { contractStatus, pricingModeLabel, serviceStatus, serviceStatusHelp, typ
 import { APPROVED_STATUSES, parseSlots, WORK_STATUSES, type ServiceDetail } from '@/lib/service-detail';
 
 type SectionKey = 'payment' | 'contract' | 'quote' | 'work' | 'review' | 'expert' | 'request' | 'history';
-type IconName = ComponentProps<typeof Ionicons>['name'];
 
 /**
  * Orden de las secciones según lo que más le sirve al cliente en cada estado: primero lo que tiene que hacer
@@ -41,10 +41,6 @@ const ORDER: Partial<Record<Enums<'service_status'>, SectionKey[]>> = {
 };
 const DEFAULT_ORDER: SectionKey[] = ['quote', 'expert', 'request', 'history'];
 
-function daysLabel(n: number | null | undefined): string | null {
-  return n == null ? null : `${n} ${n === 1 ? 'día hábil' : 'días hábiles'}`;
-}
-
 type Props = {
   detail: ServiceDetail;
   userId: string;
@@ -59,20 +55,9 @@ type Props = {
  */
 export function ClientServiceView({ detail, userId, onChanged, onCancelRequest, cancelling }: Props) {
   const { service, quote, counterpart, contract, schedule } = detail;
-  const { scrollToY } = useScreenScroll();
   const [summaryOpen, setSummaryOpen] = useState(true);
-  const [open, setOpen] = useState<Partial<Record<SectionKey, boolean>>>({});
-  const positions = useRef<Partial<Record<SectionKey, number>>>({});
-
-  const toggle = (key: SectionKey) => setOpen((current) => ({ ...current, [key]: !current[key] }));
-  const reveal = (key: SectionKey) => {
-    setOpen((current) => ({ ...current, [key]: true }));
-    // Después de abrirla: antes el contenido aún no tiene la altura para llegar hasta la sección.
-    setTimeout(() => {
-      const y = positions.current[key];
-      if (y != null) scrollToY(y);
-    }, 120);
-  };
+  const sectionState = useSections<SectionKey>();
+  const { reveal } = sectionState;
 
   const status = serviceStatus[service.status];
   const approved = APPROVED_STATUSES.includes(service.status);
@@ -137,7 +122,7 @@ export function ClientServiceView({ detail, userId, onChanged, onCancelRequest, 
     ],
   ];
 
-  const sections: Record<SectionKey, { title: string; subtitle?: string | null; icon: IconName; right?: React.ReactNode; body: React.ReactNode }> = {
+  const sections: Record<SectionKey, SectionSpec> = {
     payment: {
       title: 'Pago del servicio',
       subtitle: `Total ${formatCOP(stagesTotal)}`,
@@ -365,104 +350,19 @@ export function ClientServiceView({ detail, userId, onChanged, onCancelRequest, 
           <KeyValue label="Motivo de la cancelación" value={service.cancel_reason} />
         ) : null}
 
-        <View style={styles.facts}>
-          {facts
-            .filter((fact): fact is [string, string] => Boolean(fact[1]))
-            .map(([label, value]) => (
-              <View key={label} style={styles.fact}>
-                <KeyValue label={label} value={value} />
-              </View>
-            ))}
-          <View style={styles.factWide}>
-            <KeyValue label="Dirección" value={[service.address, service.city].filter(Boolean).join(', ')} />
-          </View>
-        </View>
+        <Facts facts={facts} address={[service.address, service.city].filter(Boolean).join(', ')} />
 
         {service.status === 'requested' ? (
           <Button title="Cancelar solicitud" variant="danger" loading={cancelling} onPress={onCancelRequest} />
         ) : null}
       </Collapsible>
 
-      {order.map((key) => {
-        const section = sections[key];
-        return (
-          <Collapsible
-            key={key}
-            title={section.title}
-            subtitle={section.subtitle}
-            icon={section.icon}
-            right={section.right}
-            open={Boolean(open[key])}
-            onToggle={() => toggle(key)}
-            onLayout={(e) => {
-              positions.current[key] = e.nativeEvent.layout.y;
-            }}>
-            {section.body}
-          </Collapsible>
-        );
-      })}
+      <SectionList order={order} sections={sections} state={sectionState} />
     </>
   );
 }
 
-function NextSteps({ title, footer, children }: { title: string; footer?: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.next}>
-      <Text style={styles.nextTitle}>{title}</Text>
-      {children}
-      {footer ? <Text style={styles.nextFooter}>{footer}</Text> : null}
-    </View>
-  );
-}
-
-const STEP_ICON: Record<'todo' | 'waiting' | 'alert' | 'done', { name: IconName; color: string }> = {
-  todo: { name: 'ellipse-outline', color: colors.primary },
-  waiting: { name: 'hourglass-outline', color: colors.info },
-  alert: { name: 'alert-circle', color: colors.danger },
-  done: { name: 'checkmark-circle', color: colors.success },
-};
-
-function Step({
-  state,
-  title,
-  detail,
-  action,
-}: {
-  state: keyof typeof STEP_ICON;
-  title: string;
-  detail: string;
-  action?: { label: string; onPress: () => void } | null;
-}) {
-  const icon = STEP_ICON[state];
-  return (
-    <View style={styles.step}>
-      <Ionicons name={icon.name} size={22} color={icon.color} />
-      <View style={styles.stepText}>
-        <Text style={[styles.stepTitle, state === 'done' && styles.stepDone]}>{title}</Text>
-        <Text style={styles.stepDetail}>{detail}</Text>
-        {action ? (
-          <View style={styles.stepAction}>
-            <Button title={action.label} size="sm" variant="secondary" onPress={action.onPress} />
-          </View>
-        ) : null}
-      </View>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  next: { backgroundColor: colors.primarySoft, borderRadius: radius, padding: spacing.md, gap: spacing.md },
-  nextTitle: { fontSize: 13, fontWeight: '800', color: colors.primary, textTransform: 'uppercase', letterSpacing: 0.4 },
-  nextFooter: { fontSize: 13, color: colors.textMuted, lineHeight: 18 },
-  step: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
-  stepText: { flex: 1, gap: 2 },
-  stepTitle: { fontSize: 15, fontWeight: '700', color: colors.text },
-  stepDone: { color: colors.textMuted },
-  stepDetail: { fontSize: 13, color: colors.textMuted, lineHeight: 18 },
-  stepAction: { alignSelf: 'flex-start', marginTop: spacing.xs },
-  facts: { flexDirection: 'row', flexWrap: 'wrap', rowGap: spacing.sm, columnGap: spacing.md },
-  fact: { flexGrow: 1, flexBasis: '45%', minWidth: 140 },
-  factWide: { flexBasis: '100%' },
   slots: { gap: spacing.xs },
   slotsLabel: { fontSize: 12, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
   slot: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },

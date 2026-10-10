@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { PhotoGrid } from '@/components/service/photo-grid';
 import { Button } from '@/components/ui/button';
-import { Card, SectionBody, SectionTitle } from '@/components/ui/card';
+import { SectionBody, SectionTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ErrorBanner, InfoBanner, useErrorState } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
@@ -157,7 +157,16 @@ function Tag({ label, tone }: { label: string; tone: 'primary' | 'danger' | 'mut
 }
 
 /** Cierre del trabajo: muestra lo que falta (close_work_missing) o pide notas y cierra (close_work). */
-export function CloseWorkSection({ service, onChanged }: { service: Tables<'services'>; onChanged: () => Promise<void> }) {
+export function CloseWorkSection({
+  service,
+  onChanged,
+  embedded,
+}: {
+  service: Tables<'services'>;
+  onChanged: () => Promise<void>;
+  /** Dentro de una sección plegable: sin título ni tarjeta propia. */
+  embedded?: boolean;
+}) {
   const [checking, setChecking] = useState(false);
   const [missing, setMissing] = useState<string[] | null>(null);
   const [notes, setNotes] = useState('');
@@ -194,8 +203,8 @@ export function CloseWorkSection({ service, onChanged }: { service: Tables<'serv
 
   return (
     <>
-      <SectionTitle>Cerrar trabajo</SectionTitle>
-      <Card style={styles.card}>
+      {embedded ? null : <SectionTitle>Cerrar trabajo</SectionTitle>}
+      <SectionBody plain={embedded} style={styles.card}>
         <Text style={styles.help}>
           Cuando termines, cierra el trabajo: el servicio pasa a En observación y Xpertos verifica con el cliente en máximo 1 día
           hábil.
@@ -230,7 +239,7 @@ export function CloseWorkSection({ service, onChanged }: { service: Tables<'serv
             <Button title="Cancelar" variant="ghost" onPress={() => setMissing(null)} />
           </>
         )}
-      </Card>
+      </SectionBody>
     </>
   );
 }

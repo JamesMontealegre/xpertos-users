@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
-import { Card, SectionTitle } from '@/components/ui/card';
+import { SectionBody, SectionTitle } from '@/components/ui/card';
 import { ErrorBanner, useErrorState } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { colors, radius, spacing } from '@/constants/theme';
@@ -16,6 +16,8 @@ type Props = {
   service: Tables<'services'>;
   userId: string;
   onChanged: () => Promise<void>;
+  /** Dentro de una sección plegable: sin título ni tarjeta propia. */
+  embedded?: boolean;
 };
 
 const MIN_SERVICES = 5;
@@ -24,7 +26,7 @@ const MIN_SERVICES = 5;
  * Periodicidad con la que el experto recibe el pago. Se elige con el servicio Pendiente de pago o
  * Programado; las opciones distintas a "Obra terminada" exigen más de 5 servicios cerrados satisfactoriamente.
  */
-export function PayoutFrequencySection({ service, userId, onChanged }: Props) {
+export function PayoutFrequencySection({ service, userId, onChanged, embedded }: Props) {
   const editable = service.status === 'pending_payment' || service.status === 'scheduled';
   const [eligible, setEligible] = useState<boolean | null>(null);
   const [count, setCount] = useState<number | null>(null);
@@ -79,12 +81,12 @@ export function PayoutFrequencySection({ service, userId, onChanged }: Props) {
 
   if (!editable) {
     return (
-      <Card style={styles.inline}>
+      <SectionBody plain={embedded} style={styles.inline}>
         <Ionicons name="wallet-outline" size={18} color={colors.primary} />
         <Text style={styles.inlineText}>
           Periodicidad de tu pago: <Text style={styles.inlineValue}>{payoutFrequencyLabel(service.payout_frequency)}</Text>
         </Text>
-      </Card>
+      </SectionBody>
     );
   }
 
@@ -92,8 +94,8 @@ export function PayoutFrequencySection({ service, userId, onChanged }: Props) {
 
   return (
     <>
-      <SectionTitle>Periodicidad de tu pago</SectionTitle>
-      <Card style={styles.card}>
+      {embedded ? null : <SectionTitle>Periodicidad de tu pago</SectionTitle>}
+      <SectionBody plain={embedded} style={styles.card}>
         <Text style={styles.help}>
           Elige cada cuánto quieres que Xpertos te pague este servicio.
         </Text>
@@ -136,7 +138,7 @@ export function PayoutFrequencySection({ service, userId, onChanged }: Props) {
           disabled={eligible === null}
         />
         <Text style={styles.current}>Actual: {payoutFrequencyLabel(service.payout_frequency)}</Text>
-      </Card>
+      </SectionBody>
     </>
   );
 }
