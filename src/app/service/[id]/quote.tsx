@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, SectionTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
-import { ErrorBanner, InfoBanner, Loading, Screen } from '@/components/ui/screen';
+import { ErrorBanner, InfoBanner, Loading, NoticeBanner, Screen } from '@/components/ui/screen';
 import { Select } from '@/components/ui/select';
 import { Text } from '@/components/ui/text';
 import { colors, radius, spacing } from '@/constants/theme';
@@ -215,7 +215,7 @@ export default function QuoteScreen() {
         ) : (
           <InfoBanner tone="warning" message="Este servicio no está disponible para cotizar." />
         )}
-        {notice ? <InfoBanner tone="success" message={notice} /> : null}
+        <NoticeBanner message={notice} />
         {quote ? (
           <Card style={styles.card}>
             <QuoteSummary
@@ -336,9 +336,20 @@ export default function QuoteScreen() {
     }
   };
 
+  /** Lo que exige el envío, revisado antes de guardar para avisar de una vez qué falta. */
+  const missingForSubmit = (): string | null => {
+    const days = Number(estimatedDays);
+    if (!estimatedDays.trim() || !Number.isInteger(days) || days < 1) return 'Indica la duración estimada en días hábiles.';
+    if (!items.some((i) => i.description.trim() && lineTotal(i) > 0)) return 'Agrega al menos una actividad con descripción y valor.';
+    if (loaded.photos.length === 0) return 'Agrega al menos una foto del antes.';
+    return null;
+  };
+
   const submit = async () => {
     setError(null);
     setNotice(null);
+    const missing = missingForSubmit();
+    if (missing) return setError(`Para enviar la cotización falta: ${missing.charAt(0).toLowerCase()}${missing.slice(1)}`);
     setSaving('submit');
     try {
       await persist();
@@ -399,7 +410,7 @@ export default function QuoteScreen() {
       ) : null}
       <Text style={styles.serviceTitle}>{service.title}</Text>
       <ErrorBanner message={error} />
-      {notice ? <InfoBanner tone="success" message={notice} /> : null}
+      <NoticeBanner message={notice} />
 
       <InfoBanner message="Cotiza tu mano de obra y lista los materiales que necesita el trabajo. Xpertos le presenta al cliente tu cotización y él decide si compra los materiales o si los cubre Xpertos (todo incluido)." />
       <View style={styles.commissionBox}>
@@ -417,7 +428,7 @@ export default function QuoteScreen() {
           value={estimatedDays}
           onChangeText={(v) => setEstimatedDays(v.replace(/\D/g, ''))}
           keyboardType="number-pad"
-          placeholder="3"
+          placeholder="Ej. 3"
           hint="Días hábiles de trabajo, sin contar fines de semana ni festivos."
         />
       </Card>
@@ -493,7 +504,7 @@ export default function QuoteScreen() {
               value={item.unitPrice}
               onChangeText={(unitPrice) => updateItem(item.key, { unitPrice: unitPrice.replace(/\D/g, '') })}
               keyboardType="number-pad"
-              placeholder="0"
+              placeholder="Ej. 50000"
               containerStyle={styles.price}
             />
           </View>
@@ -557,7 +568,7 @@ export default function QuoteScreen() {
             value={m.estimatedCost}
             onChangeText={(estimatedCost) => updateMaterial(m.key, { estimatedCost: estimatedCost.replace(/\D/g, '') })}
             keyboardType="number-pad"
-            placeholder="0"
+            placeholder="Ej. 20000"
             hint={m.estimatedCost ? `${formatCOP(parseMoney(m.estimatedCost))} en total para este material` : 'Valor total estimado de este material.'}
           />
           <Input label="Notas" value={m.notes} onChangeText={(v) => updateMaterial(m.key, { notes: v })} placeholder="Marca, referencia, color…" />

@@ -6,7 +6,7 @@ import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, SectionTitle } from '@/components/ui/card';
-import { ErrorBanner, InfoBanner } from '@/components/ui/screen';
+import { ErrorBanner, InfoBanner, NoticeBanner } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { colors, radius, spacing } from '@/constants/theme';
 import type { Tables } from '@/lib/database.types';
@@ -93,7 +93,7 @@ export function StagesSection({ service, stages, payments, accounts, isClient, u
     <>
       <SectionTitle right={<Text style={styles.total}>Total {formatCOP(total)}</Text>}>Pago del servicio</SectionTitle>
       <ErrorBanner message={error} />
-      {notice ? <InfoBanner tone="success" message={notice} /> : null}
+      <NoticeBanner message={notice} />
       {stages.map((stage) => {
         const status = stageStatus[stage.status];
         const stagePayments = payments.filter((p) => p.stage_id === stage.id);

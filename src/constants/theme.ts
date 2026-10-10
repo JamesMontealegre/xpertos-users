@@ -28,6 +28,8 @@ export const colors = {
   surface: '#FFFFFF',
   text: '#0F172A',
   textMuted: '#5A6A7E',
+  // Texto de ejemplo de los campos: más claro que un valor escrito para no confundirlos.
+  placeholder: '#A0AAB6',
   border: '#DBE1E7',
   danger: '#DC2626',
   dangerSoft: '#FEE2E2',

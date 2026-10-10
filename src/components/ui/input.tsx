@@ -22,7 +22,7 @@ export function Input({ label, error, hint, containerStyle, style, multiline, ..
     <View style={[styles.container, containerStyle]}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
       <TextInput
-        placeholderTextColor={colors.textMuted}
+        placeholderTextColor={colors.placeholder}
         multiline={multiline}
         style={[styles.input, multiline && styles.multiline, error ? styles.inputError : null, style]}
         {...rest}

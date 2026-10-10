@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, KeyValue, SectionTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { ErrorBanner, InfoBanner, Loading, Screen } from '@/components/ui/screen';
+import { ErrorBanner, InfoBanner, Loading, NoticeBanner, Screen } from '@/components/ui/screen';
 import { Select } from '@/components/ui/select';
 import { Text } from '@/components/ui/text';
 import { colors, spacing } from '@/constants/theme';
@@ -308,7 +308,7 @@ export default function ApplicationScreen() {
       onRefresh={refresh}
       withTabs>
       <ErrorBanner message={error} />
-      {notice ? <InfoBanner tone="success" message={notice} /> : null}
+      <NoticeBanner message={notice} />
 
       {application && !showForm ? (
         <>

@@ -9,7 +9,7 @@ import { Card, KeyValue, SectionTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { TimeInput } from '@/components/ui/masked-input';
-import { ErrorBanner, InfoBanner, Loading, Screen } from '@/components/ui/screen';
+import { ErrorBanner, InfoBanner, Loading, NoticeBanner, Screen } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { colors, spacing } from '@/constants/theme';
 import type { Tables } from '@/lib/database.types';
@@ -177,7 +177,7 @@ export default function WorkDayScreen() {
         {service.payout_frequency === 'daily' ? <Text style={[styles.tag, styles.tagRequired]}>Pago diario: jornada obligatoria</Text> : null}
       </View>
       <ErrorBanner message={error} />
-      {notice ? <InfoBanner tone="success" message={notice} /> : null}
+      <NoticeBanner message={notice} />
       {!editable ? (
         <InfoBanner
           tone="warning"

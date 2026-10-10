@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Text } from '@/components/ui/text';
 import { XLoader } from '@/components/ui/x-loader';
+import { useFeedback } from '@/providers/feedback';
 import { colors, maxContentWidth, spacing } from '@/constants/theme';
 
 type Props = {
@@ -28,8 +29,13 @@ type Props = {
   withTabs?: boolean;
 };
 
+/** Permite que un aviso (p. ej. un error) lleve la pantalla arriba para que se vea. */
+const ScreenScrollContext = createContext<{ scrollToTop: () => void }>({ scrollToTop: () => {} });
+
 export function Screen({ children, title, subtitle, refreshing = false, onRefresh, plain, withTabs }: Props) {
   const insets = useSafeAreaInsets();
+  const scrollRef = useRef<ScrollView>(null);
+  const scroll = useMemo(() => ({ scrollToTop: () => scrollRef.current?.scrollTo({ y: 0, animated: true }) }), []);
   // Título de la sección (debajo del encabezado de la app en las pantallas con pestañas).
   const header =
     title || subtitle ? (
@@ -59,6 +65,7 @@ export function Screen({ children, title, subtitle, refreshing = false, onRefres
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={[
           styles.scroll,
           { paddingTop: topInset + (withTabs ? spacing.lg : spacing.md), paddingBottom: withTabs ? spacing.xl : insets.bottom + spacing.xl },
@@ -67,7 +74,7 @@ export function Screen({ children, title, subtitle, refreshing = false, onRefres
         refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} /> : undefined}>
         <View style={styles.content}>
           {header}
-          {children}
+          <ScreenScrollContext.Provider value={scroll}>{children}</ScreenScrollContext.Provider>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -82,7 +89,12 @@ export function Loading({ message = 'Cargando…' }: { message?: string }) {
   );
 }
 
+/** Error de la pantalla. Al aparecer uno nuevo, la pantalla sube para que se vea aunque se esté abajo. */
 export function ErrorBanner({ message }: { message?: string | null }) {
+  const { scrollToTop } = useContext(ScreenScrollContext);
+  useEffect(() => {
+    if (message) scrollToTop();
+  }, [message, scrollToTop]);
   if (!message) return null;
   return (
     <View style={styles.errorBanner}>
@@ -162,3 +174,12 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 });
+
+/** Mensaje de éxito de una acción: se muestra como aviso flotante (se ve en cualquier parte de la pantalla). */
+export function NoticeBanner({ message }: { message?: string | null }) {
+  const { toast } = useFeedback();
+  useEffect(() => {
+    if (message) toast(message, 'success');
+  }, [message, toast]);
+  return null;
+}

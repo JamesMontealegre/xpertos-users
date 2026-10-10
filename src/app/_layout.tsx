@@ -20,6 +20,7 @@ import { Loading } from '@/components/ui/screen';
 import { UpdateWatcher } from '@/components/update-watcher';
 import { colors, fonts } from '@/constants/theme';
 import { AuthProvider, useAuth } from '@/providers/auth';
+import { FeedbackProvider } from '@/providers/feedback';
 import { NotificationsProvider } from '@/providers/notifications';
 
 SplashScreen.preventAutoHideAsync();
@@ -98,12 +99,14 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ThemeProvider value={theme}>
-        <AuthProvider>
-          <NotificationsProvider>
-            <StatusBar style="dark" />
-            <RootNavigator />
-          </NotificationsProvider>
-        </AuthProvider>
+        <FeedbackProvider>
+          <AuthProvider>
+            <NotificationsProvider>
+              <StatusBar style="dark" />
+              <RootNavigator />
+            </NotificationsProvider>
+          </AuthProvider>
+        </FeedbackProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

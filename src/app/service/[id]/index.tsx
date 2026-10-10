@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { ContractSection } from '@/components/service/contract';
 import { PayoutFrequencySection } from '@/components/service/payout-frequency';
@@ -26,6 +26,7 @@ import { formatCOP, formatDateTime, formatPlainDate } from '@/lib/format';
 import { pricingModeLabel, serviceStatus, serviceStatusHelp } from '@/lib/labels';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/providers/auth';
+import { useFeedback } from '@/providers/feedback';
 
 type Slot = { date: string; from: string; to: string };
 
@@ -60,19 +61,9 @@ function parseSlots(value: unknown): Slot[] {
   );
 }
 
-function confirm(title: string, message: string, onConfirm: () => void) {
-  if (Platform.OS === 'web') {
-    if (typeof window !== 'undefined' && window.confirm(`${title}\n\n${message}`)) onConfirm();
-    return;
-  }
-  Alert.alert(title, message, [
-    { text: 'Volver', style: 'cancel' },
-    { text: 'Confirmar', style: 'destructive', onPress: onConfirm },
-  ]);
-}
-
 export default function ServiceDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { confirm } = useFeedback();
   const { session, profile } = useAuth();
   const [detail, setDetail] = useState<Detail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -316,9 +307,15 @@ export default function ServiceDetailScreen() {
           title="Cancelar solicitud"
           variant="danger"
           loading={updating}
-          onPress={() =>
-            confirm('Cancelar solicitud', '¿Seguro que quieres cancelar esta solicitud? No podrás reactivarla.', cancelRequest)
-          }
+          onPress={async () => {
+            const ok = await confirm({
+              title: 'Cancelar solicitud',
+              message: '¿Seguro que quieres cancelar esta solicitud? No podrás reactivarla.',
+              confirmLabel: 'Cancelar solicitud',
+              destructive: true,
+            });
+            if (ok) cancelRequest();
+          }}
         />
       ) : null}
 
