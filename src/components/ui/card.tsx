@@ -8,6 +8,14 @@ type CardProps = ViewProps & {
   style?: StyleProp<ViewStyle>;
 };
 
+/**
+ * Contenedor de una sección: tarjeta normal o, dentro de una sección plegable (`plain`), solo el contenido
+ * sin marco para no anidar tarjetas.
+ */
+export function SectionBody({ plain, style, children }: { plain?: boolean; style?: StyleProp<ViewStyle>; children: React.ReactNode }) {
+  return plain ? <View style={[styles.plain, style]}>{children}</View> : <Card style={style}>{children}</Card>;
+}
+
 export function Card({ children, style, onPress, ...rest }: CardProps) {
   if (onPress) {
     return (
@@ -55,6 +63,9 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.85,
+  },
+  plain: {
+    gap: spacing.sm,
   },
   sectionHeader: {
     flexDirection: 'row',

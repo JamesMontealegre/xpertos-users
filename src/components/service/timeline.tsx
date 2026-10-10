@@ -1,6 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
-import { Card, SectionTitle } from '@/components/ui/card';
+import { SectionBody, SectionTitle } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
 import { colors, spacing } from '@/constants/theme';
 import type { Enums, Tables } from '@/lib/database.types';
@@ -37,11 +37,11 @@ function describe(event: Tables<'service_events'>): string {
   return '';
 }
 
-export function Timeline({ events }: { events: Tables<'service_events'>[] }) {
+export function Timeline({ events, embedded }: { events: Tables<'service_events'>[]; embedded?: boolean }) {
   return (
     <>
-      <SectionTitle>Línea de tiempo</SectionTitle>
-      <Card>
+      {embedded ? null : <SectionTitle>Línea de tiempo</SectionTitle>}
+      <SectionBody plain={embedded}>
         {events.length === 0 ? (
           <Text style={styles.muted}>Sin eventos todavía.</Text>
         ) : (
@@ -62,7 +62,7 @@ export function Timeline({ events }: { events: Tables<'service_events'>[] }) {
             );
           })
         )}
-      </Card>
+      </SectionBody>
     </>
   );
 }

@@ -29,13 +29,31 @@ type Props = {
   withTabs?: boolean;
 };
 
-/** Permite que un aviso (p. ej. un error) lleve la pantalla arriba para que se vea. */
-const ScreenScrollContext = createContext<{ scrollToTop: () => void }>({ scrollToTop: () => {} });
+/**
+ * Permite que un aviso (p. ej. un error) lleve la pantalla arriba para que se vea, o que un botón lleve a una
+ * sección (`scrollToY` recibe la posición del elemento dentro del contenido de la pantalla).
+ */
+const ScreenScrollContext = createContext<{ scrollToTop: () => void; scrollToY: (y: number) => void }>({
+  scrollToTop: () => {},
+  scrollToY: () => {},
+});
+
+export function useScreenScroll() {
+  return useContext(ScreenScrollContext);
+}
 
 export function Screen({ children, title, subtitle, refreshing = false, onRefresh, plain, withTabs }: Props) {
   const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
-  const scroll = useMemo(() => ({ scrollToTop: () => scrollRef.current?.scrollTo({ y: 0, animated: true }) }), []);
+  // Posición del contenido dentro del scroll (relleno superior y título), para llevar a una sección.
+  const contentY = useRef(0);
+  const scroll = useMemo(
+    () => ({
+      scrollToTop: () => scrollRef.current?.scrollTo({ y: 0, animated: true }),
+      scrollToY: (y: number) => scrollRef.current?.scrollTo({ y: Math.max(0, contentY.current + y - spacing.sm), animated: true }),
+    }),
+    []
+  );
   // Título de la sección (debajo del encabezado de la app en las pantallas con pestañas).
   const header =
     title || subtitle ? (
@@ -72,7 +90,7 @@ export function Screen({ children, title, subtitle, refreshing = false, onRefres
         ]}
         keyboardShouldPersistTaps="handled"
         refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} /> : undefined}>
-        <View style={styles.content}>
+        <View style={styles.content} onLayout={(e) => (contentY.current = e.nativeEvent.layout.y)}>
           {header}
           <ScreenScrollContext.Provider value={scroll}>{children}</ScreenScrollContext.Provider>
         </View>

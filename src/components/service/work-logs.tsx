@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { PhotoGrid } from '@/components/service/photo-grid';
 import { Button } from '@/components/ui/button';
-import { Card, SectionTitle } from '@/components/ui/card';
+import { Card, SectionBody, SectionTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ErrorBanner, InfoBanner, useErrorState } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
@@ -24,6 +24,8 @@ type Props = {
   holidays: string[];
   /** Experto con el servicio En ejecución: puede registrar jornadas. */
   editable: boolean;
+  /** Dentro de una sección plegable: sin título ni tarjeta propia. */
+  embedded?: boolean;
 };
 
 function hoursLabel(log: WorkLog): string | null {
@@ -33,7 +35,7 @@ function hoursLabel(log: WorkLog): string | null {
 }
 
 /** Registro de jornadas: calendario editable para el experto, lista de solo lectura para los demás. */
-export function WorkLogsSection({ service, schedule, logs, holidays, editable }: Props) {
+export function WorkLogsSection({ service, schedule, logs, holidays, editable, embedded }: Props) {
   const today = todayCO();
   const byDate = new Map(logs.map((l) => [l.work_date, l]));
   const daily = service.payout_frequency === 'daily';
@@ -42,8 +44,8 @@ export function WorkLogsSection({ service, schedule, logs, holidays, editable }:
     const sorted = [...logs].sort((a, b) => b.work_date.localeCompare(a.work_date));
     return (
       <>
-        <SectionTitle right={<Text style={styles.count}>{logs.length}</Text>}>Jornadas registradas</SectionTitle>
-        <Card style={styles.card}>
+        {embedded ? null : <SectionTitle right={<Text style={styles.count}>{logs.length}</Text>}>Jornadas registradas</SectionTitle>}
+        <SectionBody plain={embedded} style={styles.card}>
           {sorted.length === 0 ? (
             <Text style={styles.muted}>Aún no hay jornadas registradas.</Text>
           ) : (
@@ -59,7 +61,7 @@ export function WorkLogsSection({ service, schedule, logs, holidays, editable }:
               </View>
             ))
           )}
-        </Card>
+        </SectionBody>
       </>
     );
   }
@@ -72,8 +74,8 @@ export function WorkLogsSection({ service, schedule, logs, holidays, editable }:
 
   return (
     <>
-      <SectionTitle right={<Text style={styles.count}>{logs.length}</Text>}>Registro de jornadas</SectionTitle>
-      <Card style={styles.card}>
+      {embedded ? null : <SectionTitle right={<Text style={styles.count}>{logs.length}</Text>}>Registro de jornadas</SectionTitle>}
+      <SectionBody plain={embedded} style={styles.card}>
         <Text style={styles.help}>
           Toca un día para registrar la hora de ingreso, la hora de salida, notas y fotos del trabajo. El primer día y el día de
           cierre, con fotos, son obligatorios.
@@ -136,7 +138,7 @@ export function WorkLogsSection({ service, schedule, logs, holidays, editable }:
             );
           })}
         </View>
-      </Card>
+      </SectionBody>
     </>
   );
 }

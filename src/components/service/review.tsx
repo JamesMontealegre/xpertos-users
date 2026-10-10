@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { StyleSheet } from 'react-native';
 
 import { Button } from '@/components/ui/button';
-import { Card, SectionTitle } from '@/components/ui/card';
+import { SectionBody, SectionTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ErrorBanner, useErrorState } from '@/components/ui/screen';
 import { StarRating } from '@/components/ui/star-rating';
@@ -19,9 +19,11 @@ type Props = {
   userId: string;
   counterpartName: string;
   onChanged: () => Promise<void>;
+  /** Dentro de una sección plegable: sin título ni tarjeta propia. */
+  embedded?: boolean;
 };
 
-export function ReviewSection({ service, reviews, userId, counterpartName, onChanged }: Props) {
+export function ReviewSection({ service, reviews, userId, counterpartName, onChanged, embedded }: Props) {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [saving, setSaving] = useState(false);
@@ -58,8 +60,8 @@ export function ReviewSection({ service, reviews, userId, counterpartName, onCha
 
   return (
     <>
-      <SectionTitle>Calificación</SectionTitle>
-      <Card style={styles.card}>
+      {embedded ? null : <SectionTitle>Calificación</SectionTitle>}
+      <SectionBody plain={embedded} style={styles.card}>
         <ErrorBanner seq={errorSeq} message={error} />
         {mine ? (
           <>
@@ -83,7 +85,7 @@ export function ReviewSection({ service, reviews, userId, counterpartName, onCha
             {received.comment ? <Text style={styles.comment}>“{received.comment}”</Text> : null}
           </>
         ) : null}
-      </Card>
+      </SectionBody>
     </>
   );
 }

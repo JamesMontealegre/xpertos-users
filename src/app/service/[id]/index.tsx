@@ -3,17 +3,16 @@ import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router
 import { useCallback, useState } from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
-import { ContractSection } from '@/components/service/contract';
+import { ClientServiceView } from '@/components/service/client-view';
 import { PayoutFrequencySection } from '@/components/service/payout-frequency';
 import { ServicePhotos } from '@/components/service/photos';
 import { LifecycleProgress } from '@/components/service/progress';
-import { QuoteOptions } from '@/components/service/quote-options';
 import { QuoteSummary } from '@/components/service/quote-summary';
 import { ReviewSection } from '@/components/service/review';
 import { ScheduleCard } from '@/components/service/schedule';
 import { StagesSection } from '@/components/service/stages';
 import { Timeline } from '@/components/service/timeline';
-import { CloseWorkSection, WorkLogsSection, type WorkLog } from '@/components/service/work-logs';
+import { CloseWorkSection, WorkLogsSection } from '@/components/service/work-logs';
 import { Badge } from '@/components/ui/badge';
 import { BackFallback } from '@/components/back-fallback';
 import { Button } from '@/components/ui/button';
@@ -22,7 +21,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorBanner, InfoBanner, Loading, Screen, useErrorState } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { colors, radius, spacing } from '@/constants/theme';
-import type { Enums, Tables } from '@/lib/database.types';
+import type { Tables } from '@/lib/database.types';
 import { formatCOP, formatDateTime, formatPlainDate } from '@/lib/format';
 import { pricingModeLabel, serviceStatus, serviceStatusHelp } from '@/lib/labels';
 import { supabase } from '@/lib/supabase';
@@ -30,39 +29,7 @@ import { homeFor } from '@/lib/home';
 import { useRoleGuard } from '@/hooks/use-role-guard';
 import { useAuth } from '@/providers/auth';
 import { useFeedback } from '@/providers/feedback';
-
-type Slot = { date: string; from: string; to: string };
-
-type Detail = {
-  service: Tables<'services'> & { service_categories: { name: string } | null };
-  photos: Tables<'service_photos'>[];
-  stages: Tables<'service_stages'>[];
-  payments: Tables<'payments'>[];
-  contract: Tables<'contracts'> | null;
-  signatures: Tables<'contract_signatures'>[];
-  reviews: Tables<'service_reviews'>[];
-  events: Tables<'service_events'>[];
-  counterpart: Tables<'profiles'> | null;
-  quote: Tables<'service_quotes'> | null;
-  items: Tables<'quote_items'>[];
-  materials: Tables<'quote_materials'>[];
-  schedule: Tables<'service_schedule'> | null;
-  accounts: Tables<'payment_accounts'>[];
-  logs: WorkLog[];
-  holidays: string[];
-};
-
-/** Estados en los que hay obra iniciada (jornadas, cierre). */
-const WORK_STATUSES: Enums<'service_status'>[] = ['in_progress', 'paused', 'under_review', 'completed'];
-/** Estados con cotización aprobada (el cliente ve el resumen). */
-const APPROVED_STATUSES: Enums<'service_status'>[] = ['pending_payment', 'scheduled', ...WORK_STATUSES];
-
-function parseSlots(value: unknown): Slot[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter(
-    (v): v is Slot => typeof v === 'object' && v !== null && typeof (v as Slot).date === 'string' && typeof (v as Slot).from === 'string'
-  );
-}
+import { APPROVED_STATUSES, parseSlots, WORK_STATUSES, type ServiceDetail } from '@/lib/service-detail';
 
 export default function ServiceDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -70,7 +37,7 @@ export default function ServiceDetailScreen() {
   const { session, profile, isApplicant } = useAuth();
   // Sin sesión (p. ej. se cerró en otra pestaña) lleva al ingreso en vez de quedarse cargando.
   const guard = useRoleGuard(['client', 'expert', 'admin']);
-  const [detail, setDetail] = useState<Detail | null>(null);
+  const [detail, setDetail] = useState<ServiceDetail | null>(null);
   const [error, setError, errorSeq] = useErrorState();
   const [notFound, setNotFound] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -109,7 +76,7 @@ export default function ServiceDetailScreen() {
         : Promise.resolve({ data: [] as Tables<'payment_accounts'>[] }),
       hasWork
         ? supabase.from('work_logs').select('*, work_log_photos(*)').eq('service_id', id).order('work_date')
-        : Promise.resolve({ data: [] as WorkLog[] }),
+        : Promise.resolve({ data: [] as ServiceDetail['logs'] }),
     ]);
     const [signatures, holidays] = await Promise.all([
       contract.data
@@ -167,6 +134,16 @@ export default function ServiceDetailScreen() {
     await load();
   };
 
+  const confirmCancel = async () => {
+    const ok = await confirm({
+      title: 'Cancelar solicitud',
+      message: '¿Seguro que quieres cancelar esta solicitud? No podrás reactivarla.',
+      confirmLabel: 'Cancelar solicitud',
+      destructive: true,
+    });
+    if (ok) cancelRequest();
+  };
+
   if (guard) return guard;
   if (notFound) {
     return (
@@ -192,9 +169,6 @@ export default function ServiceDetailScreen() {
   const slots = parseSlots(service.availability);
   const counterpartName = counterpart?.full_name || (isClient ? 'tu experto' : 'el cliente');
   const cancelledFrom = [...detail.events].reverse().find((e) => e.type === 'status_change' && e.to_status === 'cancelled')?.from_status;
-  const clientPendingPayment = isClient && service.status === 'pending_payment';
-  const proofInReview = detail.payments.some((p) => p.status === 'submitted');
-  const proofRejected = !proofInReview && detail.stages.some((st) => st.status === 'rejected');
   const hasWork = WORK_STATUSES.includes(service.status);
   const logsSignature = detail.logs
     .map((l) => `${l.id}:${l.check_in}:${l.check_out}:${l.work_log_photos.length}`)
@@ -206,236 +180,164 @@ export default function ServiceDetailScreen() {
       {profile ? <BackFallback href={homeFor(profile, isApplicant)} label="Ir al inicio" /> : null}
       <ErrorBanner seq={errorSeq} message={error} />
 
-      <Card style={styles.card}>
-        <View style={styles.headerRow}>
-          <Text style={styles.title}>{service.title}</Text>
-          <Badge label={status.label} tone={status.tone} />
-        </View>
-        <Text style={styles.category}>{service.service_categories?.name ?? 'Sin categoría'}</Text>
-        <LifecycleProgress status={service.status} cancelledFrom={cancelledFrom} />
-        {!clientPendingPayment ? (
-          <InfoBanner
-            tone={service.status === 'paused' ? 'warning' : service.status === 'completed' ? 'success' : 'info'}
-            message={
-              service.status === 'quoting' && quote?.status === 'approved' && quote.total == null
-                ? isClient
-                  ? 'Tu cotización está lista. Revisa la mano de obra y los materiales, y elige cómo quieres el servicio.'
-                  : 'Xpertos aprobó tu cotización y se la presentó al cliente: está eligiendo entre solo mano de obra y todo incluido.'
-                : isClient
-                  ? serviceStatusHelp[service.status].client
+      {isClient ? (
+        <ClientServiceView detail={detail} userId={userId} onChanged={load} onCancelRequest={confirmCancel} cancelling={updating} />
+      ) : (
+        <>
+          <Card style={styles.card}>
+            <View style={styles.headerRow}>
+              <Text style={styles.title}>{service.title}</Text>
+              <Badge label={status.label} tone={status.tone} />
+            </View>
+            <Text style={styles.category}>{service.service_categories?.name ?? 'Sin categoría'}</Text>
+            <LifecycleProgress status={service.status} cancelledFrom={cancelledFrom} />
+            <InfoBanner
+              tone={service.status === 'paused' ? 'warning' : service.status === 'completed' ? 'success' : 'info'}
+              message={
+                service.status === 'quoting' && quote?.status === 'approved' && quote.total == null
+                  ? 'Xpertos aprobó tu cotización y se la presentó al cliente: está eligiendo entre solo mano de obra y todo incluido.'
                   : serviceStatusHelp[service.status].expert
-            }
-          />
-        ) : null}
-        {service.status === 'paused' && service.pause_reason ? <KeyValue label="Motivo de la pausa" value={service.pause_reason} /> : null}
-        {service.status === 'cancelled' && service.cancel_reason ? (
-          <KeyValue label="Motivo de la cancelación" value={service.cancel_reason} />
-        ) : null}
-        <KeyValue label="Descripción" value={service.description} />
-        <KeyValue label="Dirección" value={[service.address, service.city].filter(Boolean).join(', ')} />
-        <KeyValue label="Modalidad" value={service.pricing_mode ? pricingModeLabel(service.pricing_mode) : 'Se elige al presentar la cotización'} />
-        {/* El valor existe cuando el cliente ya eligió la opción de la cotización. */}
-        {service.estimated_price != null && APPROVED_STATUSES.includes(service.status) ? (
-          <KeyValue label="Valor del servicio" value={formatCOP(service.estimated_price)} />
-        ) : null}
-        {service.scheduled_at && ['assigned', 'quoting'].includes(service.status) ? (
-          <KeyValue label="Visita acordada" value={formatDateTime(service.scheduled_at)} />
-        ) : null}
-        <KeyValue label="Solicitado" value={formatDateTime(service.created_at)} />
-        {slots.length > 0 && ['requested', 'assigned', 'quoting'].includes(service.status) ? (
-          <View style={styles.slots}>
-            <Text style={styles.slotsLabel}>Disponibilidad del cliente</Text>
-            {slots.map((slot, idx) => (
-              <View key={`${slot.date}-${idx}`} style={styles.slot}>
-                <Ionicons name="time-outline" size={16} color={colors.primary} />
-                <Text style={styles.slotText}>
-                  {formatPlainDate(slot.date)} · {slot.from} – {slot.to}
-                </Text>
+              }
+            />
+            {service.status === 'paused' && service.pause_reason ? <KeyValue label="Motivo de la pausa" value={service.pause_reason} /> : null}
+            {service.status === 'cancelled' && service.cancel_reason ? (
+              <KeyValue label="Motivo de la cancelación" value={service.cancel_reason} />
+            ) : null}
+            <KeyValue label="Descripción" value={service.description} />
+            <KeyValue label="Dirección" value={[service.address, service.city].filter(Boolean).join(', ')} />
+            <KeyValue label="Modalidad" value={service.pricing_mode ? pricingModeLabel(service.pricing_mode) : 'Se elige al presentar la cotización'} />
+            {/* El valor existe cuando el cliente ya eligió la opción de la cotización. */}
+            {service.estimated_price != null && APPROVED_STATUSES.includes(service.status) ? (
+              <KeyValue label="Valor del servicio" value={formatCOP(service.estimated_price)} />
+            ) : null}
+            {service.scheduled_at && ['assigned', 'quoting'].includes(service.status) ? (
+              <KeyValue label="Visita acordada" value={formatDateTime(service.scheduled_at)} />
+            ) : null}
+            <KeyValue label="Solicitado" value={formatDateTime(service.created_at)} />
+            {slots.length > 0 && ['requested', 'assigned', 'quoting'].includes(service.status) ? (
+              <View style={styles.slots}>
+                <Text style={styles.slotsLabel}>Disponibilidad del cliente</Text>
+                {slots.map((slot, idx) => (
+                  <View key={`${slot.date}-${idx}`} style={styles.slot}>
+                    <Ionicons name="time-outline" size={16} color={colors.primary} />
+                    <Text style={styles.slotText}>
+                      {formatPlainDate(slot.date)} · {slot.from} – {slot.to}
+                    </Text>
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
-        ) : null}
-      </Card>
-
-      {clientPendingPayment ? (
-        <View style={styles.payBanner}>
-          <Ionicons name="card-outline" size={26} color="#FFFFFF" />
-          <View style={styles.payBannerText}>
-            <Text style={styles.payBannerTitle}>Tu servicio fue revisado y está pendiente de pago</Text>
-            <Text style={styles.payBannerSubtitle}>
-              {proofInReview
-                ? 'Recibimos tu comprobante. El estado cambia a Programado cuando Xpertos verifique el pago en el banco.'
-                : proofRejected
-                  ? 'Tu último comprobante fue rechazado. Revisa la nota en «Pago del servicio» y sube otro.'
-                  : 'Paga el total en una de las cuentas de Xpertos y sube el comprobante. El estado cambia a Programado cuando Xpertos verifique el pago en el banco.'}
-            </Text>
-          </View>
-        </View>
-      ) : null}
-
-      {isClient && service.status === 'under_review' ? (
-        <InfoBanner
-          tone="success"
-          message={`Xpertos te contactará para verificar el trabajo en máximo 1 día hábil${
-            service.review_due_date ? ` (a más tardar el ${formatPlainDate(service.review_due_date)})` : ''
-          }.`}
-        />
-      ) : null}
-
-      <ScheduleCard service={service} schedule={detail.schedule} />
-
-      {counterpart ? (
-        <>
-          <SectionTitle>{isClient ? 'Experto asignado' : 'Cliente'}</SectionTitle>
-          <Card style={styles.personCard}>
-            <View style={styles.avatar}>
-              <Ionicons name="person" size={22} color={colors.primary} />
-            </View>
-            <View style={styles.personInfo}>
-              <Text style={styles.personName}>{counterpart.full_name}</Text>
-              {counterpart.city ? <Text style={styles.personMeta}>{counterpart.city}</Text> : null}
-            </View>
-            {counterpart.phone ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Llamar a ${counterpart.full_name}`}
-                onPress={() => Linking.openURL(`tel:${counterpart.phone}`)}
-                style={styles.phone}>
-                <Ionicons name="call-outline" size={16} color={colors.primary} />
-                <Text style={styles.phoneText}>{counterpart.phone}</Text>
-              </Pressable>
             ) : null}
           </Card>
-        </>
-      ) : null}
 
-      {isClient && service.status === 'requested' ? (
-        <Button
-          title="Cancelar solicitud"
-          variant="danger"
-          loading={updating}
-          onPress={async () => {
-            const ok = await confirm({
-              title: 'Cancelar solicitud',
-              message: '¿Seguro que quieres cancelar esta solicitud? No podrás reactivarla.',
-              confirmLabel: 'Cancelar solicitud',
-              destructive: true,
-            });
-            if (ok) cancelRequest();
-          }}
-        />
-      ) : null}
+          <ScheduleCard service={service} schedule={detail.schedule} />
 
-      {isExpert && service.status === 'assigned' ? (
-        <>
-          <SectionTitle>Cotización</SectionTitle>
-          <Card style={styles.card}>
-            {quote?.status === 'returned' ? (
-              <InfoBanner tone="warning" message={`Xpertos devolvió tu cotización${quote.admin_notes ? `: ${quote.admin_notes}` : '.'}`} />
-            ) : null}
-            <Text style={styles.help}>
-              Arma la cotización con las actividades, los materiales y fotos del antes. Xpertos la revisa antes de enviarla al cliente.
-              Recuerda: Xpertos descuenta el {Number(service.commission_pct)} % de tu cotización por el uso de la plataforma.
-            </Text>
-            <Button
-              title={!quote ? 'Armar cotización' : quote.status === 'returned' ? 'Corregir cotización' : 'Continuar cotización'}
-              onPress={() => router.push({ pathname: '/service/[id]/quote', params: { id: service.id } })}
+          {counterpart ? (
+            <>
+              <SectionTitle>{isClient ? 'Experto asignado' : 'Cliente'}</SectionTitle>
+              <Card style={styles.personCard}>
+                <View style={styles.avatar}>
+                  <Ionicons name="person" size={22} color={colors.primary} />
+                </View>
+                <View style={styles.personInfo}>
+                  <Text style={styles.personName}>{counterpart.full_name}</Text>
+                  {counterpart.city ? <Text style={styles.personMeta}>{counterpart.city}</Text> : null}
+                </View>
+                {counterpart.phone ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Llamar a ${counterpart.full_name}`}
+                    onPress={() => Linking.openURL(`tel:${counterpart.phone}`)}
+                    style={styles.phone}>
+                    <Ionicons name="call-outline" size={16} color={colors.primary} />
+                    <Text style={styles.phoneText}>{counterpart.phone}</Text>
+                  </Pressable>
+                ) : null}
+              </Card>
+            </>
+          ) : null}
+
+          {isExpert && service.status === 'assigned' ? (
+            <>
+              <SectionTitle>Cotización</SectionTitle>
+              <Card style={styles.card}>
+                {quote?.status === 'returned' ? (
+                  <InfoBanner tone="warning" message={`Xpertos devolvió tu cotización${quote.admin_notes ? `: ${quote.admin_notes}` : '.'}`} />
+                ) : null}
+                <Text style={styles.help}>
+                  Arma la cotización con las actividades, los materiales y fotos del antes. Xpertos la revisa antes de enviarla al cliente.
+                  Recuerda: Xpertos descuenta el {Number(service.commission_pct)} % de tu cotización por el uso de la plataforma.
+                </Text>
+                <Button
+                  title={!quote ? 'Armar cotización' : quote.status === 'returned' ? 'Corregir cotización' : 'Continuar cotización'}
+                  onPress={() => router.push({ pathname: '/service/[id]/quote', params: { id: service.id } })}
+                />
+              </Card>
+            </>
+          ) : null}
+
+          {isExpert && quote && service.status !== 'assigned' && service.status !== 'cancelled' ? (
+            <>
+              <SectionTitle>Tu cotización</SectionTitle>
+              <Card style={styles.card}>
+                <QuoteSummary
+                  quote={quote}
+                  items={detail.items}
+                  materials={detail.materials}
+                  audience="expert"
+                  commissionPct={Number(service.commission_pct)}
+                  showStatus
+                />
+              </Card>
+            </>
+          ) : null}
+
+          {isExpert && (APPROVED_STATUSES.includes(service.status)) ? (
+            <PayoutFrequencySection service={service} userId={userId} onChanged={load} />
+          ) : null}
+
+          {/* El cobro existe desde que el cliente elige la opción de la cotización (Pendiente de pago). */}
+          {APPROVED_STATUSES.includes(service.status) ? (
+            <StagesSection
+              service={service}
+              stages={detail.stages}
+              payments={detail.payments}
+              accounts={detail.accounts}
+              isClient={isClient}
+              userId={userId}
+              onChanged={load}
             />
-          </Card>
-        </>
-      ) : null}
+          ) : null}
 
-      {isExpert && quote && service.status !== 'assigned' && service.status !== 'cancelled' ? (
-        <>
-          <SectionTitle>Tu cotización</SectionTitle>
-          <Card style={styles.card}>
-            <QuoteSummary
-              quote={quote}
-              items={detail.items}
-              materials={detail.materials}
-              audience="expert"
-              commissionPct={Number(service.commission_pct)}
-              showStatus
+          {hasWork && (isClient || isExpert) ? (
+            <WorkLogsSection
+              service={service}
+              schedule={detail.schedule}
+              logs={detail.logs}
+              holidays={detail.holidays}
+              editable={isExpert && service.status === 'in_progress'}
             />
-          </Card>
+          ) : null}
+
+          {isExpert && service.status === 'in_progress' ? (
+            // Se reinicia cuando cambian las jornadas para no mostrar faltantes desactualizados.
+            <CloseWorkSection key={logsSignature} service={service} onChanged={load} />
+          ) : null}
+
+          {service.closing_notes && ['under_review', 'completed'].includes(service.status) ? (
+            <Card style={styles.card}>
+              <KeyValue label="Notas de cierre del experto" value={service.closing_notes} />
+            </Card>
+          ) : null}
+
+          <ServicePhotos photos={detail.photos} />
+
+          {service.status === 'completed' ? (
+            <ReviewSection service={service} reviews={detail.reviews} userId={userId} counterpartName={counterpartName} onChanged={load} />
+          ) : null}
+
+          <Timeline events={detail.events} />
         </>
-      ) : null}
-
-      {isExpert && (APPROVED_STATUSES.includes(service.status)) ? (
-        <PayoutFrequencySection service={service} userId={userId} onChanged={load} />
-      ) : null}
-
-      {isClient && quote && service.status === 'quoting' && quote.status === 'approved' && quote.total == null ? (
-        <>
-          <SectionTitle>Tu cotización está lista</SectionTitle>
-          <Card style={styles.card}>
-            <QuoteOptions
-              serviceId={service.id}
-              quote={quote}
-              items={detail.items}
-              materials={detail.materials}
-              clientFeePct={Number(service.client_fee_pct)}
-              onChosen={load}
-            />
-          </Card>
-        </>
-      ) : null}
-
-      {isClient && quote && APPROVED_STATUSES.includes(service.status) ? (
-        <>
-          <SectionTitle>Cotización aprobada</SectionTitle>
-          <Card style={styles.card}>
-            <QuoteSummary quote={quote} items={detail.items} materials={detail.materials} audience="client" clientFeePct={Number(service.client_fee_pct)} />
-          </Card>
-        </>
-      ) : null}
-
-      {/* El cobro existe desde que el cliente elige la opción de la cotización (Pendiente de pago). */}
-      {APPROVED_STATUSES.includes(service.status) ? (
-        <StagesSection
-          service={service}
-          stages={detail.stages}
-          payments={detail.payments}
-          accounts={detail.accounts}
-          isClient={isClient}
-          userId={userId}
-          onChanged={load}
-        />
-      ) : null}
-
-      {hasWork && (isClient || isExpert) ? (
-        <WorkLogsSection
-          service={service}
-          schedule={detail.schedule}
-          logs={detail.logs}
-          holidays={detail.holidays}
-          editable={isExpert && service.status === 'in_progress'}
-        />
-      ) : null}
-
-      {isExpert && service.status === 'in_progress' ? (
-        // Se reinicia cuando cambian las jornadas para no mostrar faltantes desactualizados.
-        <CloseWorkSection key={logsSignature} service={service} onChanged={load} />
-      ) : null}
-
-      {service.closing_notes && ['under_review', 'completed'].includes(service.status) ? (
-        <Card style={styles.card}>
-          <KeyValue label="Notas de cierre del experto" value={service.closing_notes} />
-        </Card>
-      ) : null}
-
-      <ServicePhotos photos={detail.photos} />
-
-      {/* El contrato es entre Xpertos y el cliente: el experto no lo ve. */}
-      {isClient && detail.contract ? (
-        <ContractSection contract={detail.contract} signatures={detail.signatures} service={service} userId={userId} onChanged={load} />
-      ) : null}
-
-      {service.status === 'completed' ? (
-        <ReviewSection service={service} reviews={detail.reviews} userId={userId} counterpartName={counterpartName} onChanged={load} />
-      ) : null}
-
-      <Timeline events={detail.events} />
+      )}
     </Screen>
   );
 }
@@ -450,17 +352,6 @@ const styles = StyleSheet.create({
   slotsLabel: { fontSize: 12, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
   slot: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   slotText: { fontSize: 14, color: colors.text },
-  payBanner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.md,
-    backgroundColor: colors.accent,
-    borderRadius: radius,
-    padding: spacing.md,
-  },
-  payBannerText: { flex: 1, gap: 4 },
-  payBannerTitle: { fontSize: 17, fontWeight: '800', color: '#FFFFFF', lineHeight: 23 },
-  payBannerSubtitle: { fontSize: 14, color: '#FFF7ED', lineHeight: 20 },
   personCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   avatar: {
     width: 44,

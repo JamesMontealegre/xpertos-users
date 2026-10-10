@@ -5,7 +5,7 @@ import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, SectionTitle } from '@/components/ui/card';
+import { SectionBody, SectionTitle } from '@/components/ui/card';
 import { ErrorBanner, InfoBanner, useErrorState } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { colors, radius, spacing } from '@/constants/theme';
@@ -25,10 +25,12 @@ type Props = {
   isClient: boolean;
   userId: string;
   onChanged: () => Promise<void>;
+  /** Dentro de una sección plegable: sin título ni tarjeta propia. */
+  embedded?: boolean;
 };
 
 /** Cobro del servicio (un único pago tras aprobar la cotización), cuentas de recaudo y comprobantes. */
-export function StagesSection({ service, stages, payments, accounts, isClient, userId, onChanged }: Props) {
+export function StagesSection({ service, stages, payments, accounts, isClient, userId, onChanged, embedded }: Props) {
   const [uploadingStage, setUploadingStage] = useState<string | null>(null);
   const [error, setError, errorSeq] = useErrorState();
   const { confirm, toast } = useFeedback();
@@ -96,7 +98,7 @@ export function StagesSection({ service, stages, payments, accounts, isClient, u
 
   return (
     <>
-      <SectionTitle right={<Text style={styles.total}>Total {formatCOP(total)}</Text>}>Pago del servicio</SectionTitle>
+      {embedded ? null : <SectionTitle right={<Text style={styles.total}>Total {formatCOP(total)}</Text>}>Pago del servicio</SectionTitle>}
       <ErrorBanner seq={errorSeq} message={error} />
       {stages.map((stage) => {
         const status = stageStatus[stage.status];
@@ -105,14 +107,19 @@ export function StagesSection({ service, stages, payments, accounts, isClient, u
         const waitingVerification = stagePayments.some((p) => p.status === 'submitted');
         const canPay = isClient && (stage.status === 'awaiting_payment' || stage.status === 'rejected') && !waitingVerification;
         return (
-          <Card key={stage.id} style={styles.card}>
-            <View style={styles.row}>
-              <View style={styles.titleWrap}>
-                <Text style={styles.name}>{stage.name}</Text>
-                {stage.description ? <Text style={styles.description}>{stage.description}</Text> : null}
+          <SectionBody key={stage.id} plain={embedded} style={styles.card}>
+            {/* Dentro de la sección plegable, el nombre y el estado ya están en su encabezado. */}
+            {embedded && stages.length === 1 ? (
+              stage.description ? <Text style={styles.description}>{stage.description}</Text> : null
+            ) : (
+              <View style={styles.row}>
+                <View style={styles.titleWrap}>
+                  <Text style={styles.name}>{stage.name}</Text>
+                  {stage.description ? <Text style={styles.description}>{stage.description}</Text> : null}
+                </View>
+                <Badge label={status.label} tone={status.tone} />
               </View>
-              <Badge label={status.label} tone={status.tone} />
-            </View>
+            )}
             <View style={styles.row}>
               <Text style={styles.amount}>{formatCOP(stage.amount)}</Text>
               {stage.due_date ? <Text style={styles.due}>Vence {formatDate(stage.due_date)}</Text> : null}
@@ -197,7 +204,7 @@ export function StagesSection({ service, stages, payments, accounts, isClient, u
                 })}
               </View>
             ) : null}
-          </Card>
+          </SectionBody>
         );
       })}
     </>

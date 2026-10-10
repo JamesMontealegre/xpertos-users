@@ -5,7 +5,7 @@ import { Platform, StyleSheet, View } from 'react-native';
 import { MarkdownView } from '@/components/markdown';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, SectionTitle } from '@/components/ui/card';
+import { SectionBody, SectionTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ErrorBanner, useErrorState } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
@@ -23,9 +23,11 @@ type Props = {
   service: Tables<'services'>;
   userId: string;
   onChanged: () => Promise<void>;
+  /** Dentro de una sección plegable: sin título ni tarjeta propia. */
+  embedded?: boolean;
 };
 
-export function ContractSection({ contract, signatures, service, userId, onChanged }: Props) {
+export function ContractSection({ contract, signatures, service, userId, onChanged, embedded }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [accepted, setAccepted] = useState(false);
   const [signing, setSigning] = useState(false);
@@ -77,8 +79,8 @@ export function ContractSection({ contract, signatures, service, userId, onChang
 
   return (
     <>
-      <SectionTitle right={<Badge label={status.label} tone={status.tone} />}>Contrato</SectionTitle>
-      <Card style={styles.card}>
+      {embedded ? null : <SectionTitle right={<Badge label={status.label} tone={status.tone} />}>Contrato</SectionTitle>}
+      <SectionBody plain={embedded} style={styles.card}>
         <ErrorBanner seq={errorSeq} message={error} />
         <View style={styles.signatures}>
           {/* Contrato entre Xpertos y el cliente: Xpertos lo emite y acepta; queda firmado cuando firma el cliente. */}
@@ -128,7 +130,7 @@ export function ContractSection({ contract, signatures, service, userId, onChang
         ) : mySignature ? (
           <Text style={styles.signed}>Firmaste este contrato el {formatDateTime(mySignature.signed_at)}.</Text>
         ) : null}
-      </Card>
+      </SectionBody>
     </>
   );
 }

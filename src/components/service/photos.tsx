@@ -1,21 +1,21 @@
 import { StyleSheet } from 'react-native';
 
 import { PhotoGrid } from '@/components/service/photo-grid';
-import { Card, SectionTitle } from '@/components/ui/card';
+import { SectionBody, SectionTitle } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
 import { colors } from '@/constants/theme';
 import type { Tables } from '@/lib/database.types';
 
 /** Fotos del servicio: las de la solicitud del cliente y las del antes que toma el experto al cotizar. */
-export function ServicePhotos({ photos }: { photos: Tables<'service_photos'>[] }) {
+export function ServicePhotos({ photos, embedded }: { photos: Tables<'service_photos'>[]; embedded?: boolean }) {
   const request = photos.filter((p) => p.kind !== 'before');
   const before = photos.filter((p) => p.kind === 'before');
   if (photos.length === 0) return null;
 
   return (
     <>
-      <SectionTitle>Fotos</SectionTitle>
-      <Card>
+      {embedded ? null : <SectionTitle>Fotos</SectionTitle>}
+      <SectionBody plain={embedded}>
         {request.length > 0 ? (
           <>
             <Text style={styles.label}>De la solicitud</Text>
@@ -28,7 +28,7 @@ export function ServicePhotos({ photos }: { photos: Tables<'service_photos'>[] }
             <PhotoGrid photos={before} size={104} />
           </>
         ) : null}
-      </Card>
+      </SectionBody>
     </>
   );
 }
