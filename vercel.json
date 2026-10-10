@@ -7,6 +7,10 @@
   "cleanUrls": true,
   "rewrites": [
     {
+      "source": "/firmar/:token",
+      "destination": "/firmar/[token]"
+    },
+    {
       "source": "/service/:id/work/:date",
       "destination": "/service/[id]/work/[date]"
     },

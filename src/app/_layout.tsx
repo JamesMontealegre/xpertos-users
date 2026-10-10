@@ -75,6 +75,7 @@ function RootNavigator() {
         <Stack.Screen name="service/[id]/quote" options={{ title: 'Cotización', headerBackTitle: 'Volver' }} />
         <Stack.Screen name="service/[id]/work/[date]" options={{ title: 'Jornada', headerBackTitle: 'Volver' }} />
         <Stack.Screen name="notifications" options={{ title: 'Notificaciones', headerBackTitle: 'Volver', headerRight: () => null }} />
+        <Stack.Screen name="firmar/[token]" options={{ headerShown: false, title: 'Firmar contrato' }} />
       </Stack>
       <NotificationToast />
       <UpdateWatcher />

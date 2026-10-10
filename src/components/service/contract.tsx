@@ -118,6 +118,7 @@ export function ContractSection({ contract, signatures, service, userId, onChang
 
         {canSign ? (
           <View style={styles.signBox}>
+            <Text style={styles.legal}>También te lo enviamos al correo: puedes firmarlo desde allí con un código de verificación.</Text>
             <Checkbox checked={accepted} onChange={setAccepted} label="He leído y acepto este contrato" />
             <Button title="Firmar" onPress={sign} loading={signing} disabled={!accepted} />
             <Text style={styles.legal}>
