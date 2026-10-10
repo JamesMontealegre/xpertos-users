@@ -34,7 +34,6 @@ export function ContractSection({ contract, signatures, service, userId, onChang
   const [downloading, setDownloading] = useState(false);
 
   const clientSignature = signatures.find((s) => s.signer_id === service.client_id);
-  const expertSignature = service.expert_id ? signatures.find((s) => s.signer_id === service.expert_id) : undefined;
   const mySignature = signatures.find((s) => s.signer_id === userId);
   const canSign = contract.status === 'pending_signatures' && !mySignature;
   const status = contractStatus[contract.status];
@@ -82,8 +81,12 @@ export function ContractSection({ contract, signatures, service, userId, onChang
       <Card style={styles.card}>
         <ErrorBanner seq={errorSeq} message={error} />
         <View style={styles.signatures}>
-          <SignatureState label="Cliente" signature={clientSignature} />
-          <SignatureState label="Experto" signature={expertSignature} />
+          {/* Contrato entre Xpertos y el cliente: Xpertos lo emite y acepta; queda firmado cuando firma el cliente. */}
+          <View style={styles.signature}>
+            <Ionicons name="checkmark-circle" size={18} color={colors.success} />
+            <Text style={styles.signatureText}>Xpertos: emitido y aceptado</Text>
+          </View>
+          <SignatureState label="Tú (cliente)" signature={clientSignature} />
         </View>
         <Text style={styles.meta}>
           Versión {contract.version} · Hash {contract.body_hash.slice(0, 12)}…

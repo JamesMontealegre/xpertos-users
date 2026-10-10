@@ -426,7 +426,8 @@ export default function ServiceDetailScreen() {
 
       <ServicePhotos photos={detail.photos} />
 
-      {detail.contract ? (
+      {/* El contrato es entre Xpertos y el cliente: el experto no lo ve. */}
+      {isClient && detail.contract ? (
         <ContractSection contract={detail.contract} signatures={detail.signatures} service={service} userId={userId} onChanged={load} />
       ) : null}
 

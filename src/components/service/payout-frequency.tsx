@@ -65,7 +65,7 @@ export function PayoutFrequencySection({ service, userId, onChanged }: Props) {
     setError(null);
     const ok = await confirm({
       title: 'Guardar periodicidad',
-      message: `Xpertos te pagará este servicio: ${payoutFrequencyLabel(selected).toLowerCase()}. El contrato se actualiza con esta periodicidad.`,
+      message: `Xpertos te pagará este servicio: ${payoutFrequencyLabel(selected).toLowerCase()}.`,
       confirmLabel: 'Guardar',
     });
     if (!ok) return;
@@ -73,7 +73,7 @@ export function PayoutFrequencySection({ service, userId, onChanged }: Props) {
     const { error: rpcError } = await supabase.rpc('set_payout_frequency', { p_service_id: service.id, p_frequency: selected });
     setSaving(false);
     if (rpcError) return setError(`No se pudo guardar la periodicidad: ${rpcError.message}`);
-    toast('Periodicidad guardada. El contrato se actualizó.', 'success');
+    toast('Periodicidad guardada.', 'success');
     await onChanged();
   };
 
@@ -95,7 +95,7 @@ export function PayoutFrequencySection({ service, userId, onChanged }: Props) {
       <SectionTitle>Periodicidad de tu pago</SectionTitle>
       <Card style={styles.card}>
         <Text style={styles.help}>
-          Elige cada cuánto quieres que Xpertos te pague este servicio. Queda en el contrato de inicio.
+          Elige cada cuánto quieres que Xpertos te pague este servicio.
         </Text>
         <ErrorBanner seq={errorSeq} message={error} />
         <View style={styles.options} accessibilityRole="radiogroup">

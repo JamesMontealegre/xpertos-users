@@ -179,7 +179,7 @@ export const applicationStatus: Record<Enums<'application_status'>, { label: str
 
 export const contractStatus: Record<Enums<'contract_status'>, { label: string; tone: Tone }> = {
   draft: { label: 'Borrador', tone: 'slate' },
-  pending_signatures: { label: 'Pendiente de firmas', tone: 'amber' },
+  pending_signatures: { label: 'Pendiente de tu firma', tone: 'amber' },
   signed: { label: 'Firmado', tone: 'green' },
   void: { label: 'Anulado', tone: 'red' },
 };
