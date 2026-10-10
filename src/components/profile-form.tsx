@@ -5,13 +5,14 @@ import { StyleSheet } from 'react-native';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { ErrorBanner, InfoBanner, useErrorState } from '@/components/ui/screen';
+import { ErrorBanner, useErrorState } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { colors, spacing } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { cityError, fullNameError, normalizePhone, phoneError } from '@/lib/validation';
 import { APP_VERSION } from '@/lib/version';
 import { useAuth } from '@/providers/auth';
+import { useFeedback } from '@/providers/feedback';
 
 /** Formulario de datos básicos del perfil + cerrar sesión. Compartido por cliente, aspirante y experto. */
 export function ProfileForm() {
@@ -21,7 +22,7 @@ export function ProfileForm() {
   const [city, setCity] = useState(profile?.city ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError, errorSeq] = useErrorState();
-  const [saved, setSaved] = useState(false);
+  const { confirm, toast } = useFeedback();
   const [submitted, setSubmitted] = useState(false);
 
   // Mismas reglas que el registro; los errores aparecen al intentar guardar.
@@ -31,9 +32,8 @@ export function ProfileForm() {
   const save = async () => {
     if (!session) return;
     setError(null);
-    setSaved(false);
     setSubmitted(true);
-    if (hasErrors) return;
+    if (hasErrors) return setError('Revisa los campos marcados.');
     setSaving(true);
     const { error: updateError } = await supabase
       .from('profiles')
@@ -45,7 +45,12 @@ export function ProfileForm() {
       return;
     }
     await refreshProfile();
-    setSaved(true);
+    toast('Perfil actualizado.', 'success');
+  };
+
+  const confirmSignOut = async () => {
+    const ok = await confirm({ title: 'Cerrar sesión', message: 'Para volver a entrar necesitarás tu correo y contraseña.', confirmLabel: 'Cerrar sesión', destructive: true });
+    if (ok) await signOut();
   };
 
   return (
@@ -53,7 +58,6 @@ export function ProfileForm() {
       <Card style={styles.card}>
         <Text style={styles.email}>{profile?.email ?? session?.user.email}</Text>
         <ErrorBanner seq={errorSeq} message={error} />
-        {saved ? <InfoBanner tone="success" message="Perfil actualizado." /> : null}
         <Input label="Nombre completo" value={fullName} onChangeText={setFullName} error={submitted ? errors.fullName : null} />
         <Input
           label="Celular"
@@ -70,7 +74,7 @@ export function ProfileForm() {
       {profile?.role === 'admin' && profile.is_super_admin ? (
         <Button title="Cambiar de vista (superadmin)" variant="outline" onPress={() => router.replace('/admin')} />
       ) : null}
-      <Button title="Cerrar sesión" variant="danger" onPress={signOut} />
+      <Button title="Cerrar sesión" variant="danger" onPress={confirmSignOut} />
       <Text style={styles.version}>Versión {APP_VERSION}</Text>
     </>
   );

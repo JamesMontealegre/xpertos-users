@@ -274,3 +274,11 @@ export const eventLabels: Record<string, string> = {
   work_closed: 'Trabajo cerrado',
   review_created: 'Calificación registrada',
 };
+
+/** Unidades que se cuentan (bultos, cajas, unidades): su precio va "c/u"; las de medida, "por m²", "por kg"… */
+const COUNTED_UNITS = ['und', 'caja', 'global'];
+
+/** Cómo se lee el precio unitario según la unidad: "c/u" o "por m²", "por ml", "por kg"… */
+export function unitPriceLabel(unit: string): string {
+  return COUNTED_UNITS.includes(unit) || unit.startsWith('bulto') ? 'c/u' : `por ${unit}`;
+}

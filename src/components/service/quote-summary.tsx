@@ -5,7 +5,8 @@ import { Text } from '@/components/ui/text';
 import { colors, radius, spacing } from '@/constants/theme';
 import type { Tables } from '@/lib/database.types';
 import { formatCOP } from '@/lib/format';
-import { pricingModeLabel, quoteStatus } from '@/lib/labels';
+import { chosenValues } from '@/lib/client-prices';
+import { pricingModeLabel, quoteStatus, unitPriceLabel } from '@/lib/labels';
 
 type Props = {
   quote: Tables<'service_quotes'>;
@@ -14,6 +15,8 @@ type Props = {
   /** El cliente ve actividades y totales aprobados, sin los precios unitarios del experto. */
   audience: 'client' | 'expert';
   commissionPct?: number;
+  /** Tarifa de servicio del cliente (%): al cliente se le muestra incluida en cada valor. */
+  clientFeePct?: number;
   showStatus?: boolean;
 };
 
@@ -22,7 +25,7 @@ function qty(value: number): string {
 }
 
 /** Resumen de la cotización en solo lectura. */
-export function QuoteSummary({ quote, items, materials, audience, commissionPct, showStatus }: Props) {
+export function QuoteSummary({ quote, items, materials, audience, commissionPct, clientFeePct = 0, showStatus }: Props) {
   const approved = quote.status === 'approved';
   // Presentada al cliente con dos opciones: aún no elige (no hay total).
   const choosing = approved && quote.total == null;
@@ -34,6 +37,8 @@ export function QuoteSummary({ quote, items, materials, audience, commissionPct,
   // El experto cobra su mano de obra menos la comisión; los materiales (todo incluido) los compra Xpertos.
   const net = commissionPct != null ? Math.round(labor * (1 - commissionPct / 100)) : null;
   const status = quoteStatus[quote.status];
+  // Cliente: valores con la tarifa de servicio incluida (no se muestra aparte).
+  const forClient = chosenValues(quote, materials, clientFeePct);
 
   return (
     <View style={styles.container}>
@@ -83,9 +88,16 @@ export function QuoteSummary({ quote, items, materials, audience, commissionPct,
             </Text>
           </View>
           {audience === 'expert' && m.estimated_cost != null ? (
-            <Text style={styles.rowAmountMuted}>≈ {formatCOP(m.estimated_cost)} c/u</Text>
-          ) : audience === 'client' && allInclusive && m.line_total != null ? (
-            <Text style={styles.rowAmount}>{formatCOP(m.line_total)}</Text>
+            <Text style={styles.rowAmountMuted}>
+              ≈ {formatCOP(m.estimated_cost)} {unitPriceLabel(m.unit)}
+            </Text>
+          ) : audience === 'client' && allInclusive && forClient.lines.get(m.id)?.lineTotal != null ? (
+            <View style={styles.amountCol}>
+              <Text style={styles.rowAmount}>{formatCOP(forClient.lines.get(m.id)?.lineTotal)}</Text>
+              <Text style={styles.rowAmountMuted}>
+                {formatCOP(forClient.lines.get(m.id)?.unitPrice)} {unitPriceLabel(m.unit)}
+              </Text>
+            </View>
           ) : null}
         </View>
       ))}
@@ -114,9 +126,8 @@ export function QuoteSummary({ quote, items, materials, audience, commissionPct,
         </View>
       ) : (
         <View style={styles.totals}>
-          <TotalRow label={approved ? 'Mano de obra (aprobada)' : 'Mano de obra'} value={formatCOP(labor)} />
-          {approved && clientFee > 0 ? <TotalRow label="Tarifa de servicio Xpertos" value={formatCOP(clientFee)} /> : null}
-          {allInclusive ? <TotalRow label="Materiales" value={formatCOP(materialsTotal)} /> : null}
+          <TotalRow label="Mano de obra" value={formatCOP(approved && !choosing ? forClient.labor : labor)} />
+          {allInclusive && forClient.materialsTotal != null ? <TotalRow label="Materiales" value={formatCOP(forClient.materialsTotal)} /> : null}
           {choosing ? (
             <>
               <TotalRow label="Opción solo mano de obra" value={formatCOP(quote.total_labor_only)} strong />
@@ -176,5 +187,6 @@ const styles = StyleSheet.create({
   totalLabel: { flex: 1, fontSize: 14, color: colors.textMuted },
   totalValue: { fontSize: 14, color: colors.text, fontWeight: '600' },
   totalNote: { fontSize: 12, color: colors.textMuted },
+  amountCol: { alignItems: 'flex-end' },
   totalStrong: { fontSize: 16, fontWeight: '800', color: colors.text },
 });

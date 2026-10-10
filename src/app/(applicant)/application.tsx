@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, KeyValue, SectionTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { ErrorBanner, InfoBanner, Loading, NoticeBanner, Screen, useErrorState } from '@/components/ui/screen';
+import { ErrorBanner, InfoBanner, Loading, Screen, useErrorState } from '@/components/ui/screen';
 import { Select } from '@/components/ui/select';
 import { Text } from '@/components/ui/text';
 import { colors, spacing } from '@/constants/theme';
@@ -27,6 +27,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import { safeFileName, signedUrl, timestamp, uploadFile } from '@/lib/upload';
 import { useAuth } from '@/providers/auth';
+import { useFeedback } from '@/providers/feedback';
 import { useNotifications } from '@/providers/notifications';
 
 type Application = Tables<'expert_applications'>;
@@ -55,7 +56,7 @@ export default function ApplicationScreen() {
   });
   const [docKind, setDocKind] = useState<Enums<'document_kind'> | null>(null);
   const [error, setError, errorSeq] = useErrorState();
-  const [notice, setNotice] = useState<string | null>(null);
+  const { confirm, toast } = useFeedback();
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -145,9 +146,16 @@ export default function ApplicationScreen() {
   const submit = async () => {
     if (!session || !profile) return;
     setError(null);
-    setNotice(null);
     const validation = validate();
     if (validation) return setError(validation);
+    if (!application) {
+      const ok = await confirm({
+        title: 'Enviar postulación',
+        message: 'Xpertos revisará tus datos. Después tendrás 15 días calendario para subir tus documentos.',
+        confirmLabel: 'Enviar postulación',
+      });
+      if (!ok) return;
+    }
     setSaving(true);
     const payload = {
       phone: form.phone.trim() || null,
@@ -170,7 +178,7 @@ export default function ApplicationScreen() {
       return;
     }
     setEditing(false);
-    setNotice(application ? 'Postulación actualizada.' : '¡Postulación enviada! Ahora sube tus documentos.');
+    toast(application ? 'Postulación actualizada.' : '¡Postulación enviada! Ahora sube tus documentos.', 'success');
     await load();
   };
 
@@ -200,7 +208,6 @@ export default function ApplicationScreen() {
   const savePayout = async (method: Enums<'payout_method'>, account: string | null) => {
     if (!application) return;
     setError(null);
-    setNotice(null);
     setSavingPayout(true);
     const { error: updateError } = await supabase
       .from('expert_applications')
@@ -210,12 +217,13 @@ export default function ApplicationScreen() {
     if (updateError) return setError(`No pudimos guardar tu medio de pago: ${updateError.message}`);
     setApplication({ ...application, payout_method: method, payout_account: account });
     setDocKind(null);
-    setNotice(
+    toast(
       method === 'bank_account'
         ? 'Medio de pago guardado. Sube tu certificación bancaria: ahora es un documento requerido.'
         : method === 'nequi' && !account
           ? 'Medio de pago guardado. Escribe tu número Nequi.'
-          : 'Medio de pago guardado.'
+          : 'Medio de pago guardado.',
+      'success'
     );
   };
 
@@ -255,7 +263,7 @@ export default function ApplicationScreen() {
       });
       if (insertError) throw new Error(insertError.message);
       setDocKind(nextDocumentKind([...uploadedKinds, kind], kind, payoutMethod));
-      setNotice(`${documentKindLabel(kind)}: documento agregado.`);
+      toast(`${documentKindLabel(kind)}: documento agregado.`, 'success');
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo subir el documento.');
@@ -272,21 +280,34 @@ export default function ApplicationScreen() {
 
   const removeDocument = async (doc: ApplicationDocument) => {
     setError(null);
+    const ok = await confirm({
+      title: 'Eliminar el documento',
+      message: `${documentKindLabel(doc.kind)}${doc.file_name ? ` · ${doc.file_name}` : ''}`,
+      confirmLabel: 'Eliminar',
+      destructive: true,
+    });
+    if (!ok) return;
     const { error: deleteError } = await supabase.from('application_documents').delete().eq('id', doc.id);
     if (deleteError) return setError(`No se pudo eliminar: ${deleteError.message}`);
     await supabase.storage.from('expert-documents').remove([doc.storage_path]);
+    toast('Documento eliminado.', 'success');
     await load();
   };
 
   const reapply = async () => {
     setError(null);
-    setNotice(null);
+    const ok = await confirm({
+      title: 'Postularme de nuevo',
+      message: 'Abriremos una nueva postulación con tus datos y tendrás 15 días calendario para subir tus documentos.',
+      confirmLabel: 'Postularme de nuevo',
+    });
+    if (!ok) return;
     setReapplying(true);
     const { error: rpcError } = await supabase.rpc('reapply_application');
     setReapplying(false);
     if (rpcError) return setError(`No pudimos abrir una nueva postulación: ${rpcError.message}`);
     setDocKind(null);
-    setNotice('Abrimos una nueva postulación con tus datos. Sube tus documentos en los próximos 15 días calendario.');
+    toast('Abrimos una nueva postulación con tus datos. Sube tus documentos en los próximos 15 días calendario.', 'success');
     await load();
   };
 
@@ -308,7 +329,6 @@ export default function ApplicationScreen() {
       onRefresh={refresh}
       withTabs>
       <ErrorBanner seq={errorSeq} message={error} />
-      <NoticeBanner message={notice} />
 
       {application && !showForm ? (
         <>

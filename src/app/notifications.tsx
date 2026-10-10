@@ -14,6 +14,7 @@ import { formatRelative } from '@/lib/format';
 import { homeFor } from '@/lib/home';
 import { notificationHref } from '@/lib/notifications';
 import { useAuth } from '@/providers/auth';
+import { useFeedback } from '@/providers/feedback';
 import { useNotifications, type AppNotification } from '@/providers/notifications';
 
 /** Buzón: los mensajes del equipo de Xpertos sobre la postulación y los servicios, del más reciente al más antiguo. */
@@ -21,6 +22,7 @@ export default function NotificationsScreen() {
   const guard = useRoleGuard(['client', 'expert', 'admin']);
   const { profile, isApplicant } = useAuth();
   const { items, unread, reload, markRead, markAllRead } = useNotifications();
+  const { toast } = useFeedback();
   const [refreshing, setRefreshing] = useState(false);
 
   if (guard) return guard;
@@ -59,7 +61,11 @@ export default function NotificationsScreen() {
         <Text style={styles.summary}>
           {unread === 0 ? 'Estás al día' : unread === 1 ? '1 sin leer' : `${unread} sin leer`}
         </Text>
-        {unread > 0 ? <Button title="Marcar todas como leídas" variant="ghost" size="sm" onPress={markAllRead} /> : null}
+        {unread > 0 ? <Button title="Marcar todas como leídas" variant="ghost" size="sm" onPress={async () => {
+              const ok = await markAllRead();
+              toast(ok ? 'Marcamos todas como leídas.' : 'No pudimos marcar las notificaciones. Intenta de nuevo.', ok ? 'success' : 'error');
+            }}
+          /> : null}
       </View>
 
       {items.length === 0 ? (

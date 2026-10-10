@@ -14,6 +14,7 @@ import { mustChangePassword } from '@/lib/session';
 import { supabase, translateAuthError } from '@/lib/supabase';
 import { confirmPasswordError, passwordError } from '@/lib/validation';
 import { useAuth } from '@/providers/auth';
+import { useFeedback } from '@/providers/feedback';
 
 /**
  * Primer ingreso con clave temporal (cuentas creadas al postularse desde la landing): antes de seguir,
@@ -25,6 +26,7 @@ export default function ChangePasswordScreen() {
   const [confirm, setConfirm] = useState('');
   const [error, setError, errorSeq] = useErrorState();
   const [saving, setSaving] = useState(false);
+  const { toast } = useFeedback();
 
   if (loading) return <Loading />;
   if (!session) return <RedirectOnce href="/(auth)/login" />;
@@ -43,9 +45,8 @@ export default function ChangePasswordScreen() {
     setSaving(true);
     const { error: updateError } = await supabase.auth.updateUser({ password, data: { must_change_password: false } });
     setSaving(false);
-    if (updateError) {
-      setError(translateAuthError(updateError.message));
-    }
+    if (updateError) return setError(translateAuthError(updateError.message));
+    toast('Contraseña creada. Ya puedes usar la app.', 'success');
     // Al actualizarse la sesión, esta pantalla redirige al inicio.
   };
 

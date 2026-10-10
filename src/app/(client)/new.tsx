@@ -18,6 +18,7 @@ import { completeTime } from '@/lib/masks';
 import { supabase } from '@/lib/supabase';
 import { extensionForMime, timestamp, uploadFile } from '@/lib/upload';
 import { useAuth } from '@/providers/auth';
+import { useFeedback } from '@/providers/feedback';
 
 type Slot = { date: string; from: string; to: string };
 type Photo = { uri: string; mimeType: string; name: string };
@@ -39,6 +40,7 @@ export default function NewServiceScreen() {
   const [slotError, setSlotError] = useState<string | null>(null);
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [error, setError, errorSeq] = useErrorState();
+  const { confirm, toast } = useFeedback();
   const [saving, setSaving] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
 
@@ -91,6 +93,13 @@ export default function NewServiceScreen() {
     if (form.title.trim().length < 4) return setError('Escribe un título descriptivo (mínimo 4 caracteres).');
     if (form.description.trim().length < 10) return setError('Describe tu necesidad con más detalle (mínimo 10 caracteres).');
     if (slots.length === 0) return setError('Agrega al menos una franja de disponibilidad.');
+    const category = categories.find((c) => c.id === form.categoryId);
+    const ok = await confirm({
+      title: 'Enviar solicitud',
+      message: `${category ? `${category.name} · ` : ''}${form.title.trim()}. Xpertos te asignará un experto y te avisará.`,
+      confirmLabel: 'Enviar solicitud',
+    });
+    if (!ok) return;
 
     setSaving(true);
     try {
@@ -126,6 +135,7 @@ export default function NewServiceScreen() {
       setForm({ ...emptyForm, city: profile?.city ?? '' });
       setSlots([]);
       setPhotos([]);
+      toast('¡Solicitud enviada! Te avisaremos cuando asignemos un experto.', 'success');
       router.replace(`/service/${service.id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Ocurrió un error al guardar.');

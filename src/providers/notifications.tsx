@@ -20,7 +20,8 @@ type NotificationsContextValue = {
   subscribe: (listener: (n: AppNotification) => void) => () => void;
   reload: () => Promise<void>;
   markRead: (id: string) => Promise<void>;
-  markAllRead: () => Promise<void>;
+  /** Devuelve false si no se pudieron marcar en la base. */
+  markAllRead: () => Promise<boolean>;
 };
 
 const NotificationsContext = createContext<NotificationsContextValue | undefined>(undefined);
@@ -144,6 +145,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     setItems((list) => list.map((n) => (n.read_at ? n : { ...n, read_at: readAt })));
     const { error } = await supabase.rpc('mark_all_notifications_read');
     if (error) console.warn('No se pudieron marcar las notificaciones', error.message);
+    return !error;
   }, [setItems]);
 
   const value = useMemo<NotificationsContextValue>(

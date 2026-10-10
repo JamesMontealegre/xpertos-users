@@ -15,6 +15,7 @@ import { downloadContract } from '@/lib/contract-file';
 import { formatDateTime } from '@/lib/format';
 import { contractStatus, startedStatuses } from '@/lib/labels';
 import { supabase } from '@/lib/supabase';
+import { useFeedback } from '@/providers/feedback';
 
 type Props = {
   contract: Tables<'contracts'>;
@@ -29,6 +30,7 @@ export function ContractSection({ contract, signatures, service, userId, onChang
   const [accepted, setAccepted] = useState(false);
   const [signing, setSigning] = useState(false);
   const [error, setError, errorSeq] = useErrorState();
+  const { confirm, toast } = useFeedback();
   const [downloading, setDownloading] = useState(false);
 
   const clientSignature = signatures.find((s) => s.signer_id === service.client_id);
@@ -54,6 +56,12 @@ export function ContractSection({ contract, signatures, service, userId, onChang
   const sign = async () => {
     setError(null);
     if (!accepted) return setError('Debes aceptar el contrato para firmarlo.');
+    const ok = await confirm({
+      title: 'Firmar el contrato',
+      message: 'Tu aceptación en la app es tu firma electrónica: queda registrada con la fecha, tu IP y el código del documento.',
+      confirmLabel: 'Firmar',
+    });
+    if (!ok) return;
     setSigning(true);
     const userAgent = Platform.OS === 'web' && typeof navigator !== 'undefined' ? navigator.userAgent : `xpertos-app/${Platform.OS}`;
     const { error: rpcError } = await supabase.rpc('sign_contract', {
@@ -63,6 +71,7 @@ export function ContractSection({ contract, signatures, service, userId, onChang
     });
     setSigning(false);
     if (rpcError) return setError(`No se pudo firmar: ${rpcError.message}`);
+    toast('Contrato firmado.', 'success');
     setAccepted(false);
     await onChanged();
   };

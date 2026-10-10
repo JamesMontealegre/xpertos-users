@@ -8,8 +8,10 @@ import { Text } from '@/components/ui/text';
 import { colors, radius, spacing } from '@/constants/theme';
 import type { Enums, Tables } from '@/lib/database.types';
 import { formatCOP } from '@/lib/format';
-import { pricingModes } from '@/lib/labels';
+import { presentedValues } from '@/lib/client-prices';
+import { pricingModes, unitPriceLabel } from '@/lib/labels';
 import { supabase } from '@/lib/supabase';
+import { useFeedback } from '@/providers/feedback';
 
 type Mode = Enums<'pricing_mode'>;
 
@@ -26,14 +28,18 @@ export function QuoteOptions({
   quote,
   items,
   materials,
+  clientFeePct,
   onChosen,
 }: {
   serviceId: string;
+  /** Tarifa de servicio del cliente (%): va incluida en los valores que se muestran. */
+  clientFeePct: number;
   quote: Tables<'service_quotes'>;
   items: Tables<'quote_items'>[];
   materials: Tables<'quote_materials'>[];
   onChosen: () => void;
 }) {
+  const { confirm: ask, toast } = useFeedback();
   const [selected, setSelected] = useState<Mode | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError, errorSeq] = useErrorState();
@@ -43,21 +49,23 @@ export function QuoteOptions({
     all_inclusive: quote.total_all_inclusive != null ? Number(quote.total_all_inclusive) : null,
   };
   const options = pricingModes.filter((o) => totals[o.value] != null);
-  // Tarifa de servicio incluida en cada opción: total de la opción − mano de obra − materiales.
-  const labor = Number(quote.approved_labor_total ?? quote.labor_total);
-  const fees: Record<Mode, number | null> = {
-    labor_only: totals.labor_only != null ? totals.labor_only - labor : null,
-    all_inclusive: totals.all_inclusive != null ? totals.all_inclusive - labor - Number(quote.materials_total ?? 0) : null,
-  };
+  const shown = presentedValues(quote, materials, clientFeePct);
   const chosen = options.find((o) => o.value === selected) ?? null;
 
   const confirm = async () => {
-    if (!selected) return;
+    if (!selected || !chosen) return;
+    const ok = await ask({
+      title: `Elegir ${chosen.short.toLowerCase()}`,
+      message: `El valor del servicio será ${formatCOP(totals[chosen.value])}. Después te mostramos cómo pagar y el contrato para aceptarlo.`,
+      confirmLabel: 'Elegir esta opción',
+    });
+    if (!ok) return;
     setError(null);
     setSaving(true);
     const { error: rpcError } = await supabase.rpc('choose_pricing_mode', { p_service_id: serviceId, p_mode: selected });
     setSaving(false);
     if (rpcError) return setError(`No pudimos guardar tu elección: ${rpcError.message}`);
+    toast(`Elegiste ${chosen.short.toLowerCase()}. Ya puedes pagar tu servicio.`, 'success');
     onChosen();
   };
 
@@ -65,8 +73,8 @@ export function QuoteOptions({
     <View style={styles.container}>
       <View style={styles.block}>
         <View style={styles.laborRow}>
-          <Text style={styles.label}>Mano de obra del experto</Text>
-          <Text style={styles.laborValue}>{formatCOP(quote.approved_labor_total ?? quote.labor_total)}</Text>
+          <Text style={styles.label}>Mano de obra</Text>
+          <Text style={styles.laborValue}>{formatCOP(shown.labor)}</Text>
         </View>
         {quote.estimated_days ? (
           <Text style={styles.meta}>
@@ -92,17 +100,17 @@ export function QuoteOptions({
               <Text style={styles.lineMeta}>
                 {' · '}
                 {qty(m.quantity)} {m.unit}
-                {m.unit_price != null ? ` × ${formatCOP(m.unit_price)}` : ''}
+                {shown.lines.get(m.id)?.unitPrice != null ? ` · ${formatCOP(shown.lines.get(m.id)?.unitPrice)} ${unitPriceLabel(m.unit)}` : ''}
                 {m.notes ? ` · ${m.notes}` : ''}
               </Text>
             </Text>
-            {m.line_total != null ? <Text style={styles.materialPrice}>{formatCOP(m.line_total)}</Text> : null}
+            {shown.lines.get(m.id)?.lineTotal != null ? <Text style={styles.materialPrice}>{formatCOP(shown.lines.get(m.id)?.lineTotal)}</Text> : null}
           </View>
         ))}
-        {materials.some((m) => m.line_total != null) ? (
+        {shown.materialsTotal != null ? (
           <View style={styles.laborRow}>
             <Text style={styles.materialsTotalLabel}>Valor de los materiales (opción todo incluido)</Text>
-            <Text style={styles.materialPrice}>{formatCOP(quote.materials_total)}</Text>
+            <Text style={styles.materialPrice}>{formatCOP(shown.materialsTotal)}</Text>
           </View>
         ) : null}
       </View>
@@ -125,9 +133,7 @@ export function QuoteOptions({
                   <Text style={styles.optionPrice}>{formatCOP(totals[option.value])}</Text>
                 </View>
                 <Text style={styles.optionDescription}>{option.clientDescription}</Text>
-                {fees[option.value] ? (
-                  <Text style={styles.optionFee}>Incluye tarifa de servicio Xpertos: {formatCOP(fees[option.value])}</Text>
-                ) : null}
+
               </View>
             </Pressable>
           );
@@ -142,7 +148,7 @@ export function QuoteOptions({
         disabled={!chosen || saving}
       />
       <Text style={styles.hint}>
-        La tarifa de servicio de Xpertos es un porcentaje del valor de cada opción. Al elegir te mostramos cómo pagar y el contrato para aceptarlo.
+        Al elegir te mostramos cómo pagar y el contrato para aceptarlo.
       </Text>
     </View>
   );
@@ -155,7 +161,6 @@ const styles = StyleSheet.create({
   label: { fontSize: 12, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4, fontWeight: '700' },
   laborValue: { fontSize: 18, fontWeight: '800', color: colors.text },
   meta: { fontSize: 14, color: colors.text },
-  optionFee: { fontSize: 12, color: colors.textMuted, fontStyle: 'italic' },
   line: { fontSize: 14, color: colors.text, lineHeight: 20 },
   lineMeta: { fontSize: 13, color: colors.textMuted },
   muted: { fontSize: 14, color: colors.textMuted, fontStyle: 'italic' },

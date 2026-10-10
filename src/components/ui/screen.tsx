@@ -193,12 +193,3 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 });
-
-/** Mensaje de éxito de una acción: se muestra como aviso flotante (se ve en cualquier parte de la pantalla). */
-export function NoticeBanner({ message }: { message?: string | null }) {
-  const { toast } = useFeedback();
-  useEffect(() => {
-    if (message) toast(message, 'success');
-  }, [message, toast]);
-  return null;
-}

@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Card, SectionTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
-import { ErrorBanner, InfoBanner, Loading, NoticeBanner, Screen, useErrorState } from '@/components/ui/screen';
+import { ErrorBanner, InfoBanner, Loading, Screen, useErrorState } from '@/components/ui/screen';
 import { Select } from '@/components/ui/select';
 import { Text } from '@/components/ui/text';
 import { colors, radius, spacing } from '@/constants/theme';
@@ -23,6 +23,7 @@ import { supabase } from '@/lib/supabase';
 import type { LocalFile } from '@/lib/upload';
 import { useRoleGuard } from '@/hooks/use-role-guard';
 import { useAuth } from '@/providers/auth';
+import { useFeedback } from '@/providers/feedback';
 
 /**
  * Medidas de la actividad en dos casillas (a × b) y una unidad elegida de la lista; se guardan como
@@ -106,7 +107,7 @@ export default function QuoteScreen() {
   const [items, setItems] = useState<ItemDraft[]>([emptyItem()]);
   const [materials, setMaterials] = useState<MaterialDraft[]>([]);
   const [error, setError, errorSeq] = useErrorState();
-  const [notice, setNotice] = useState<string | null>(null);
+  const { confirm, toast } = useFeedback();
   const [saving, setSaving] = useState<'draft' | 'submit' | null>(null);
   const [uploading, setUploading] = useState(false);
 
@@ -228,7 +229,6 @@ export default function QuoteScreen() {
         ) : (
           <InfoBanner tone="warning" message="Este servicio no está disponible para cotizar." />
         )}
-        <NoticeBanner message={notice} />
         {quote ? (
           <Card style={styles.card}>
             <QuoteSummary
@@ -336,11 +336,10 @@ export default function QuoteScreen() {
 
   const saveDraft = async () => {
     setError(null);
-    setNotice(null);
     setSaving('draft');
     try {
       await persist();
-      setNotice('Borrador guardado. Puedes seguir editándolo antes de enviarlo.');
+      toast('Borrador guardado. Puedes seguir editándolo antes de enviarlo.', 'success');
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo guardar la cotización.');
@@ -360,9 +359,14 @@ export default function QuoteScreen() {
 
   const submit = async () => {
     setError(null);
-    setNotice(null);
     const missing = missingForSubmit();
     if (missing) return setError(`Para enviar la cotización falta: ${missing.charAt(0).toLowerCase()}${missing.slice(1)}`);
+    const ok = await confirm({
+      title: 'Enviar la cotización',
+      message: `Xpertos revisará tu cotización de ${formatCOP(laborTotal)} antes de presentarla al cliente. Mientras la revisa no podrás editarla.`,
+      confirmLabel: 'Enviar cotización',
+    });
+    if (!ok) return;
     setSaving('submit');
     try {
       await persist();
@@ -371,7 +375,7 @@ export default function QuoteScreen() {
         await load();
         throw new Error(`Se guardó el borrador, pero no se pudo enviar: ${rpcError.message}`);
       }
-      setNotice('¡Cotización enviada! Xpertos la revisará y te avisará.');
+      toast('¡Cotización enviada! Xpertos la revisará y te avisará.', 'success');
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo enviar la cotización.');
@@ -393,6 +397,7 @@ export default function QuoteScreen() {
           .insert({ service_id: service.id, storage_path: path, uploaded_by: userId, kind: 'before' });
         if (insertError) throw new Error(`La foto se subió pero no se pudo registrar: ${insertError.message}`);
       }
+      toast(files.length === 1 ? 'Foto agregada.' : `${files.length} fotos agregadas.`, 'success');
       await loadPhotos();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo subir la foto.');
@@ -403,9 +408,12 @@ export default function QuoteScreen() {
 
   const removePhoto = async (photo: { id: string; storage_path: string }) => {
     setError(null);
+    const ok = await confirm({ title: 'Eliminar la foto', message: 'La foto se borra de la cotización.', confirmLabel: 'Eliminar', destructive: true });
+    if (!ok) return;
     const { error: deleteError } = await supabase.from('service_photos').delete().eq('id', photo.id);
     if (deleteError) return setError(`No se pudo eliminar la foto: ${deleteError.message}`);
     await removeServicePhoto(photo.storage_path);
+    toast('Foto eliminada.', 'success');
     await loadPhotos();
   };
 
@@ -424,7 +432,6 @@ export default function QuoteScreen() {
       ) : null}
       <Text style={styles.serviceTitle}>{service.title}</Text>
       <ErrorBanner seq={errorSeq} message={error} />
-      <NoticeBanner message={notice} />
 
       <InfoBanner message="Cotiza tu mano de obra y lista los materiales que necesita el trabajo. Xpertos le presenta al cliente tu cotización y él decide si compra los materiales o si los cubre Xpertos (todo incluido)." />
       <View style={styles.commissionBox}>

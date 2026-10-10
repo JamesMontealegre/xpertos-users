@@ -369,7 +369,14 @@ export default function ServiceDetailScreen() {
         <>
           <SectionTitle>Tu cotización está lista</SectionTitle>
           <Card style={styles.card}>
-            <QuoteOptions serviceId={service.id} quote={quote} items={detail.items} materials={detail.materials} onChosen={load} />
+            <QuoteOptions
+              serviceId={service.id}
+              quote={quote}
+              items={detail.items}
+              materials={detail.materials}
+              clientFeePct={Number(service.client_fee_pct)}
+              onChosen={load}
+            />
           </Card>
         </>
       ) : null}
@@ -378,7 +385,7 @@ export default function ServiceDetailScreen() {
         <>
           <SectionTitle>Cotización aprobada</SectionTitle>
           <Card style={styles.card}>
-            <QuoteSummary quote={quote} items={detail.items} materials={detail.materials} audience="client" />
+            <QuoteSummary quote={quote} items={detail.items} materials={detail.materials} audience="client" clientFeePct={Number(service.client_fee_pct)} />
           </Card>
         </>
       ) : null}

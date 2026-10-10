@@ -11,6 +11,7 @@ import { colors, spacing } from '@/constants/theme';
 import type { Tables } from '@/lib/database.types';
 import { formatDateTime } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
+import { useFeedback } from '@/providers/feedback';
 
 type Props = {
   service: Tables<'services'>;
@@ -25,6 +26,7 @@ export function ReviewSection({ service, reviews, userId, counterpartName, onCha
   const [comment, setComment] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError, errorSeq] = useErrorState();
+  const { confirm, toast } = useFeedback();
 
   const mine = reviews.find((r) => r.author_id === userId);
   const received = reviews.find((r) => r.target_id === userId);
@@ -34,6 +36,12 @@ export function ReviewSection({ service, reviews, userId, counterpartName, onCha
     setError(null);
     if (!targetId) return setError('No hay contraparte a quien calificar.');
     if (rating < 1) return setError('Selecciona de 1 a 5 estrellas.');
+    const ok = await confirm({
+      title: 'Enviar calificación',
+      message: `Calificarás a ${counterpartName} con ${rating} ${rating === 1 ? 'estrella' : 'estrellas'}. Después de enviarla no podrás cambiarla.`,
+      confirmLabel: 'Enviar calificación',
+    });
+    if (!ok) return;
     setSaving(true);
     const { error: insertError } = await supabase.from('service_reviews').insert({
       service_id: service.id,
@@ -44,6 +52,7 @@ export function ReviewSection({ service, reviews, userId, counterpartName, onCha
     });
     setSaving(false);
     if (insertError) return setError(`No se pudo guardar la calificación: ${insertError.message}`);
+    toast('¡Gracias! Tu calificación quedó registrada.', 'success');
     await onChanged();
   };
 

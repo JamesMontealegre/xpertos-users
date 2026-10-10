@@ -6,7 +6,7 @@ import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, SectionTitle } from '@/components/ui/card';
-import { ErrorBanner, InfoBanner, NoticeBanner, useErrorState } from '@/components/ui/screen';
+import { ErrorBanner, InfoBanner, useErrorState } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { colors, radius, spacing } from '@/constants/theme';
 import type { Tables } from '@/lib/database.types';
@@ -15,6 +15,7 @@ import { paymentStatus, stageStatus } from '@/lib/labels';
 import { pickImages } from '@/lib/photos';
 import { supabase } from '@/lib/supabase';
 import { extensionForMime, extensionOf, signedUrl, timestamp, uploadFile, type LocalFile } from '@/lib/upload';
+import { useFeedback } from '@/providers/feedback';
 
 type Props = {
   service: Tables<'services'>;
@@ -30,9 +31,15 @@ type Props = {
 export function StagesSection({ service, stages, payments, accounts, isClient, userId, onChanged }: Props) {
   const [uploadingStage, setUploadingStage] = useState<string | null>(null);
   const [error, setError, errorSeq] = useErrorState();
-  const [notice, setNotice] = useState<string | null>(null);
+  const { confirm, toast } = useFeedback();
 
   const registerProof = async (stage: Tables<'service_stages'>, file: LocalFile) => {
+    const ok = await confirm({
+      title: 'Enviar el comprobante',
+      message: `Enviaremos ${file.name ? `"${file.name}"` : 'el comprobante'} como pago de ${formatCOP(stage.amount)}. Xpertos lo verificará en el banco.`,
+      confirmLabel: 'Enviar comprobante',
+    });
+    if (!ok) return;
     setUploadingStage(stage.id);
     try {
       const ext = extensionOf(file.name ?? '') || extensionForMime(file.mimeType, 'jpg');
@@ -48,7 +55,7 @@ export function StagesSection({ service, stages, payments, accounts, isClient, u
         status: 'submitted',
       });
       if (insertError) throw new Error(insertError.message);
-      setNotice('Comprobante enviado. Xpertos verificará el pago en el banco y el estado cambiará a Programado.');
+      toast('Comprobante enviado. Xpertos verificará el pago en el banco y el estado cambiará a Programado.', 'success');
       await onChanged();
     } catch (e) {
       setError(e instanceof Error ? `No se pudo registrar el pago: ${e.message}` : 'No se pudo registrar el pago.');
@@ -59,14 +66,12 @@ export function StagesSection({ service, stages, payments, accounts, isClient, u
 
   const uploadPhoto = async (stage: Tables<'service_stages'>) => {
     setError(null);
-    setNotice(null);
     const [file] = await pickImages(1);
     if (file) await registerProof(stage, file);
   };
 
   const uploadDocument = async (stage: Tables<'service_stages'>) => {
     setError(null);
-    setNotice(null);
     const result = await DocumentPicker.getDocumentAsync({
       type: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'],
       multiple: false,
@@ -93,7 +98,6 @@ export function StagesSection({ service, stages, payments, accounts, isClient, u
     <>
       <SectionTitle right={<Text style={styles.total}>Total {formatCOP(total)}</Text>}>Pago del servicio</SectionTitle>
       <ErrorBanner seq={errorSeq} message={error} />
-      <NoticeBanner message={notice} />
       {stages.map((stage) => {
         const status = stageStatus[stage.status];
         const stagePayments = payments.filter((p) => p.stage_id === stage.id);

@@ -10,7 +10,7 @@ import { Card, KeyValue, SectionTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { TimeInput } from '@/components/ui/masked-input';
-import { ErrorBanner, InfoBanner, Loading, NoticeBanner, Screen, useErrorState } from '@/components/ui/screen';
+import { ErrorBanner, InfoBanner, Loading, Screen, useErrorState } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { colors, spacing } from '@/constants/theme';
 import type { Tables } from '@/lib/database.types';
@@ -22,6 +22,7 @@ import { supabase } from '@/lib/supabase';
 import type { LocalFile } from '@/lib/upload';
 import { useRoleGuard } from '@/hooks/use-role-guard';
 import { useAuth } from '@/providers/auth';
+import { useFeedback } from '@/providers/feedback';
 
 type Loaded = { service: Tables<'services'>; log: WorkLog | null };
 
@@ -37,7 +38,7 @@ export default function WorkDayScreen() {
   const [checkOut, setCheckOut] = useState('');
   const [notes, setNotes] = useState('');
   const [error, setError, errorSeq] = useErrorState();
-  const [notice, setNotice] = useState<string | null>(null);
+  const { confirm, toast } = useFeedback();
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -129,11 +130,10 @@ export default function WorkDayScreen() {
 
   const save = async () => {
     setError(null);
-    setNotice(null);
     setSaving(true);
     try {
       await saveLog();
-      setNotice('Jornada guardada.');
+      toast('Jornada guardada.', 'success');
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo guardar la jornada.');
@@ -144,7 +144,6 @@ export default function WorkDayScreen() {
 
   const addPhotos = async (source: 'library' | 'camera') => {
     setError(null);
-    setNotice(null);
     try {
       const files: LocalFile[] = source === 'camera' ? [await takePhoto()].filter((f): f is LocalFile => f !== null) : await pickImages(6);
       if (files.length === 0) return;
@@ -156,7 +155,7 @@ export default function WorkDayScreen() {
         const { error: insertError } = await supabase.from('work_log_photos').insert({ log_id: current.id, storage_path: path });
         if (insertError) throw new Error(`La foto se subió pero no se pudo registrar: ${insertError.message}`);
       }
-      setNotice(files.length === 1 ? 'Foto agregada.' : `${files.length} fotos agregadas.`);
+      toast(files.length === 1 ? 'Foto agregada.' : `${files.length} fotos agregadas.`, 'success');
       await reloadLog();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo subir la foto.');
@@ -167,9 +166,12 @@ export default function WorkDayScreen() {
 
   const removePhoto = async (photo: { id: string; storage_path: string }) => {
     setError(null);
+    const ok = await confirm({ title: 'Eliminar la foto', message: 'La foto se borra del registro de esta jornada.', confirmLabel: 'Eliminar', destructive: true });
+    if (!ok) return;
     const { error: deleteError } = await supabase.from('work_log_photos').delete().eq('id', photo.id);
     if (deleteError) return setError(`No se pudo eliminar la foto: ${deleteError.message}`);
     await removeServicePhoto(photo.storage_path);
+    toast('Foto eliminada.', 'success');
     await reloadLog();
   };
 
@@ -184,7 +186,6 @@ export default function WorkDayScreen() {
         {service.payout_frequency === 'daily' ? <Text style={[styles.tag, styles.tagRequired]}>Pago diario: jornada obligatoria</Text> : null}
       </View>
       <ErrorBanner seq={errorSeq} message={error} />
-      <NoticeBanner message={notice} />
       {!editable ? (
         <InfoBanner
           tone="warning"

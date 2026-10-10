@@ -16,6 +16,7 @@ import { completeTime } from '@/lib/masks';
 import { weekdays } from '@/lib/labels';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/providers/auth';
+import { useFeedback } from '@/providers/feedback';
 
 type Slot = Tables<'expert_availability'>;
 
@@ -27,6 +28,7 @@ export default function AvailabilityScreen() {
   const [slots, setSlots] = useState<Slot[]>([]);
   const [draft, setDraft] = useState({ weekday: '1', start: '', end: '' });
   const [error, setError, errorSeq] = useErrorState();
+  const { confirm, toast } = useFeedback();
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -73,7 +75,9 @@ export default function AvailabilityScreen() {
     if (updateError) {
       setError(`No se pudo actualizar tu disponibilidad: ${updateError.message}`);
       setExpertProfile({ ...expertProfile, is_available: !value });
+      return;
     }
+    toast(value ? 'Quedaste disponible para nuevos servicios.' : 'Listo: no te asignaremos servicios nuevos.', 'success');
   };
 
   const addSlot = async () => {
@@ -93,14 +97,23 @@ export default function AvailabilityScreen() {
     });
     setSaving(false);
     if (insertError) return setError(`No se pudo agregar la franja: ${insertError.message}`);
+    toast(`Franja agregada: ${weekdays[Number(draft.weekday)]} ${start} – ${end}.`, 'success');
     setDraft((d) => ({ ...d, start: '', end: '' }));
     await load();
   };
 
   const removeSlot = async (slot: Slot) => {
     setError(null);
+    const ok = await confirm({
+      title: 'Eliminar la franja',
+      message: `${weekdays[slot.weekday]} · ${formatTime(slot.start_time)} – ${formatTime(slot.end_time)}`,
+      confirmLabel: 'Eliminar',
+      destructive: true,
+    });
+    if (!ok) return;
     const { error: deleteError } = await supabase.from('expert_availability').delete().eq('id', slot.id);
     if (deleteError) return setError(`No se pudo eliminar la franja: ${deleteError.message}`);
+    toast('Franja eliminada.', 'success');
     setSlots((prev) => prev.filter((s) => s.id !== slot.id));
   };
 

@@ -4,12 +4,13 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
 import { Card, SectionTitle } from '@/components/ui/card';
-import { ErrorBanner, InfoBanner, useErrorState } from '@/components/ui/screen';
+import { ErrorBanner, useErrorState } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { colors, radius, spacing } from '@/constants/theme';
 import type { Enums, Tables } from '@/lib/database.types';
 import { payoutFrequencies, payoutFrequencyLabel } from '@/lib/labels';
 import { supabase } from '@/lib/supabase';
+import { useFeedback } from '@/providers/feedback';
 
 type Props = {
   service: Tables<'services'>;
@@ -30,7 +31,7 @@ export function PayoutFrequencySection({ service, userId, onChanged }: Props) {
   const [selected, setSelected] = useState<Enums<'payout_frequency'>>(service.payout_frequency);
   const [saving, setSaving] = useState(false);
   const [error, setError, errorSeq] = useErrorState();
-  const [saved, setSaved] = useState(false);
+  const { confirm, toast } = useFeedback();
 
   // Si la periodicidad guardada cambia (p. ej. tras recargar), la selección se ajusta durante el render.
   const [savedFrequency, setSavedFrequency] = useState(service.payout_frequency);
@@ -62,12 +63,17 @@ export function PayoutFrequencySection({ service, userId, onChanged }: Props) {
 
   const save = async () => {
     setError(null);
-    setSaved(false);
+    const ok = await confirm({
+      title: 'Guardar periodicidad',
+      message: `Xpertos te pagará este servicio: ${payoutFrequencyLabel(selected).toLowerCase()}. El contrato se actualiza con esta periodicidad.`,
+      confirmLabel: 'Guardar',
+    });
+    if (!ok) return;
     setSaving(true);
     const { error: rpcError } = await supabase.rpc('set_payout_frequency', { p_service_id: service.id, p_frequency: selected });
     setSaving(false);
-    if (rpcError) return setError(rpcError.message);
-    setSaved(true);
+    if (rpcError) return setError(`No se pudo guardar la periodicidad: ${rpcError.message}`);
+    toast('Periodicidad guardada. El contrato se actualizó.', 'success');
     await onChanged();
   };
 
@@ -92,7 +98,6 @@ export function PayoutFrequencySection({ service, userId, onChanged }: Props) {
           Elige cada cuánto quieres que Xpertos te pague este servicio. Queda en el contrato de inicio.
         </Text>
         <ErrorBanner seq={errorSeq} message={error} />
-        {saved ? <InfoBanner tone="success" message="Periodicidad guardada. El contrato se actualizó." /> : null}
         <View style={styles.options} accessibilityRole="radiogroup">
           {payoutFrequencies.map((option) => {
             const locked = option.value !== 'on_completion' && eligible !== true;

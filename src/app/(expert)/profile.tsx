@@ -15,6 +15,7 @@ import type { Enums, Tables } from '@/lib/database.types';
 import { isValidNequi, payoutMethodLabel, payoutMethods } from '@/lib/labels';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/providers/auth';
+import { useFeedback } from '@/providers/feedback';
 
 export default function ExpertProfileScreen() {
   const { session } = useAuth();
@@ -22,13 +23,12 @@ export default function ExpertProfileScreen() {
   const [categories, setCategories] = useState<Tables<'service_categories'>[]>([]);
   const [bio, setBio] = useState('');
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [error, setError, errorSeq] = useErrorState();
+  const { confirm, toast } = useFeedback();
   const [payoutMethod, setPayoutMethod] = useState<Enums<'payout_method'> | null>(null);
   const [payoutAccount, setPayoutAccount] = useState('');
   const [savingPayout, setSavingPayout] = useState(false);
-  const [payoutError, setPayoutError] = useState<string | null>(null);
-  const [payoutSaved, setPayoutSaved] = useState(false);
+  const [payoutError, setPayoutError, payoutErrorSeq] = useErrorState();
 
   const load = useCallback(async () => {
     if (!session) return;
@@ -52,18 +52,16 @@ export default function ExpertProfileScreen() {
   const saveBio = async () => {
     if (!session) return;
     setError(null);
-    setSaved(false);
     setSaving(true);
     const { error: updateError } = await supabase.from('expert_profiles').update({ bio: bio.trim() || null }).eq('user_id', session.user.id);
     setSaving(false);
     if (updateError) return setError(`No pudimos guardar tu presentación: ${updateError.message}`);
-    setSaved(true);
+    toast('Presentación actualizada.', 'success');
   };
 
   const savePayout = async () => {
     if (!session) return;
     setPayoutError(null);
-    setPayoutSaved(false);
     if (!payoutMethod) return setPayoutError('Elige cómo quieres recibir tus pagos.');
     let account: string | null = payoutAccount.trim() || null;
     if (payoutMethod === 'nequi') {
@@ -71,6 +69,13 @@ export default function ExpertProfileScreen() {
       account = account.replace(/\D/g, '');
     }
     if (payoutMethod === 'efecty') account = null;
+    // Es a donde llega el dinero: se confirma con el dato a la vista.
+    const ok = await confirm({
+      title: 'Cambiar medio de pago',
+      message: `Te pagaremos por ${payoutMethodLabel(payoutMethod)}${account ? ` · ${account}` : ''}. Revisa que el dato sea correcto.`,
+      confirmLabel: 'Guardar medio de pago',
+    });
+    if (!ok) return;
     setSavingPayout(true);
     const { error: updateError } = await supabase
       .from('expert_profiles')
@@ -78,7 +83,7 @@ export default function ExpertProfileScreen() {
       .eq('user_id', session.user.id);
     setSavingPayout(false);
     if (updateError) return setPayoutError(`No pudimos guardar tu medio de pago: ${updateError.message}`);
-    setPayoutSaved(true);
+    toast('Medio de pago actualizado.', 'success');
     await load();
   };
 
@@ -102,7 +107,6 @@ export default function ExpertProfileScreen() {
       <SectionTitle>Presentación</SectionTitle>
       <Card style={styles.card}>
         <ErrorBanner seq={errorSeq} message={error} />
-        {saved ? <InfoBanner tone="success" message="Presentación actualizada." /> : null}
         <Input
           label="Bio"
           value={bio}
@@ -122,8 +126,7 @@ export default function ExpertProfileScreen() {
               Actual: <Text style={styles.currentValue}>{payoutMethodLabel(expertProfile.payout_method)}</Text>
               {expertProfile.payout_account ? ` · ${expertProfile.payout_account}` : ''}
             </Text>
-            <ErrorBanner message={payoutError} />
-            {payoutSaved ? <InfoBanner tone="success" message="Medio de pago actualizado." /> : null}
+            <ErrorBanner seq={payoutErrorSeq} message={payoutError} />
             <Select
               label="¿Cómo quieres recibir tus pagos?"
               placeholder="Elige un medio de pago"
@@ -131,7 +134,6 @@ export default function ExpertProfileScreen() {
               value={payoutMethod}
               onChange={(method) => {
                 setPayoutMethod(method);
-                setPayoutSaved(false);
                 if (method !== expertProfile.payout_method) setPayoutAccount('');
                 else setPayoutAccount(expertProfile.payout_account ?? '');
               }}

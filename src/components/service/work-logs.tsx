@@ -13,6 +13,7 @@ import { colors, radius, spacing } from '@/constants/theme';
 import type { Tables } from '@/lib/database.types';
 import { capitalizeFirst, dateRangeISO, formatPlainDate, formatShortPlainDate, formatTime, isWeekendISO, todayCO } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
+import { useFeedback } from '@/providers/feedback';
 
 export type WorkLog = Tables<'work_logs'> & { work_log_photos: Tables<'work_log_photos'>[] };
 
@@ -160,6 +161,7 @@ export function CloseWorkSection({ service, onChanged }: { service: Tables<'serv
   const [notes, setNotes] = useState('');
   const [closing, setClosing] = useState(false);
   const [error, setError, errorSeq] = useErrorState();
+  const { confirm, toast } = useFeedback();
 
   const check = async () => {
     setError(null);
@@ -172,10 +174,17 @@ export function CloseWorkSection({ service, onChanged }: { service: Tables<'serv
 
   const close = async () => {
     setError(null);
+    const ok = await confirm({
+      title: 'Cerrar el trabajo',
+      message: 'El servicio pasa a En observación y ya no podrás editar las jornadas. Xpertos verificará con el cliente que todo esté bien.',
+      confirmLabel: 'Cerrar trabajo',
+    });
+    if (!ok) return;
     setClosing(true);
     const { error: rpcError } = await supabase.rpc('close_work', { p_service_id: service.id, p_notes: notes.trim() || undefined });
     setClosing(false);
-    if (rpcError) return setError(rpcError.message);
+    if (rpcError) return setError(`No se pudo cerrar el trabajo: ${rpcError.message}`);
+    toast('Trabajo cerrado. Xpertos verificará con el cliente en máximo 1 día hábil.', 'success');
     setMissing(null);
     setNotes('');
     await onChanged();
