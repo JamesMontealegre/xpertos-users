@@ -95,27 +95,38 @@ export function QuoteSummary({ quote, items, materials, audience, commissionPct,
         </>
       ) : null}
 
-      <View style={styles.totals}>
-        <TotalRow label={approved ? 'Mano de obra (aprobada)' : 'Mano de obra'} value={formatCOP(labor)} />
-        {audience === 'client' && approved && clientFee > 0 ? <TotalRow label="Tarifa de servicio Xpertos" value={formatCOP(clientFee)} /> : null}
-        {allInclusive ? <TotalRow label="Materiales" value={approved ? formatCOP(materialsTotal) : 'Lo asigna Xpertos'} /> : null}
-        {choosing ? (
-          <>
-            <TotalRow label="Opción solo mano de obra" value={formatCOP(quote.total_labor_only)} strong />
-            {quote.total_all_inclusive != null ? (
-              <TotalRow label="Opción todo incluido" value={formatCOP(quote.total_all_inclusive)} strong />
-            ) : null}
-          </>
-        ) : (
-          <TotalRow label={audience === 'client' ? 'Total a pagar' : 'Total del servicio'} value={formatCOP(total)} strong />
-        )}
-        {audience === 'expert' && approved && net != null ? (
-          <>
-            <TotalRow label={`Comisión Xpertos (${qty(commissionPct ?? 0)} %)`} value={`− ${formatCOP(labor - net)}`} />
-            <TotalRow label="Recibirás al finalizar el servicio" value={formatCOP(net)} strong />
-          </>
-        ) : null}
-      </View>
+      {audience === 'expert' ? (
+        // El experto ve su cotización, la comisión por uso de la app y lo que recibe; no el total del cliente.
+        <View style={styles.totals}>
+          <TotalRow label={approved ? 'Tu cotización (mano de obra aprobada)' : 'Tu cotización (mano de obra)'} value={formatCOP(labor)} />
+          {net != null ? (
+            <>
+              <TotalRow label={`Comisión uso de la app (${qty(commissionPct ?? 0)} %)`} value={`− ${formatCOP(labor - net)}`} />
+              <TotalRow label="Recibirás al finalizar el servicio" value={formatCOP(net)} strong />
+            </>
+          ) : null}
+          {approved && quote.approved_labor_total != null && Number(quote.approved_labor_total) !== Number(quote.labor_total) ? (
+            <Text style={styles.totalNote}>Cotizaste {formatCOP(quote.labor_total)}; Xpertos aprobó {formatCOP(quote.approved_labor_total)}.</Text>
+          ) : null}
+          <Text style={styles.totalNote}>Los materiales no hacen parte de tu pago.</Text>
+        </View>
+      ) : (
+        <View style={styles.totals}>
+          <TotalRow label={approved ? 'Mano de obra (aprobada)' : 'Mano de obra'} value={formatCOP(labor)} />
+          {approved && clientFee > 0 ? <TotalRow label="Tarifa de servicio Xpertos" value={formatCOP(clientFee)} /> : null}
+          {allInclusive ? <TotalRow label="Materiales" value={formatCOP(materialsTotal)} /> : null}
+          {choosing ? (
+            <>
+              <TotalRow label="Opción solo mano de obra" value={formatCOP(quote.total_labor_only)} strong />
+              {quote.total_all_inclusive != null ? (
+                <TotalRow label="Opción todo incluido" value={formatCOP(quote.total_all_inclusive)} strong />
+              ) : null}
+            </>
+          ) : (
+            <TotalRow label="Total a pagar" value={formatCOP(total)} strong />
+          )}
+        </View>
+      )}
     </View>
   );
 }
@@ -162,5 +173,6 @@ const styles = StyleSheet.create({
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm },
   totalLabel: { flex: 1, fontSize: 14, color: colors.textMuted },
   totalValue: { fontSize: 14, color: colors.text, fontWeight: '600' },
+  totalNote: { fontSize: 12, color: colors.textMuted },
   totalStrong: { fontSize: 16, fontWeight: '800', color: colors.text },
 });
