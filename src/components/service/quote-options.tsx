@@ -43,6 +43,12 @@ export function QuoteOptions({
     all_inclusive: quote.total_all_inclusive != null ? Number(quote.total_all_inclusive) : null,
   };
   const options = pricingModes.filter((o) => totals[o.value] != null);
+  // Tarifa de servicio incluida en cada opción: total de la opción − mano de obra − materiales.
+  const labor = Number(quote.approved_labor_total ?? quote.labor_total);
+  const fees: Record<Mode, number | null> = {
+    labor_only: totals.labor_only != null ? totals.labor_only - labor : null,
+    all_inclusive: totals.all_inclusive != null ? totals.all_inclusive - labor - Number(quote.materials_total ?? 0) : null,
+  };
   const chosen = options.find((o) => o.value === selected) ?? null;
 
   const confirm = async () => {
@@ -62,12 +68,6 @@ export function QuoteOptions({
           <Text style={styles.label}>Mano de obra del experto</Text>
           <Text style={styles.laborValue}>{formatCOP(quote.approved_labor_total ?? quote.labor_total)}</Text>
         </View>
-        {Number(quote.client_fee_total) > 0 ? (
-          <View style={styles.laborRow}>
-            <Text style={styles.feeLabel}>Tarifa de servicio Xpertos</Text>
-            <Text style={styles.feeValue}>{formatCOP(quote.client_fee_total)}</Text>
-          </View>
-        ) : null}
         {quote.estimated_days ? (
           <Text style={styles.meta}>
             Duración estimada: {quote.estimated_days} {quote.estimated_days === 1 ? 'día hábil' : 'días hábiles'}
@@ -117,6 +117,9 @@ export function QuoteOptions({
                   <Text style={styles.optionPrice}>{formatCOP(totals[option.value])}</Text>
                 </View>
                 <Text style={styles.optionDescription}>{option.clientDescription}</Text>
+                {fees[option.value] ? (
+                  <Text style={styles.optionFee}>Incluye tarifa de servicio Xpertos: {formatCOP(fees[option.value])}</Text>
+                ) : null}
               </View>
             </Pressable>
           );
@@ -131,7 +134,7 @@ export function QuoteOptions({
         disabled={!chosen || saving}
       />
       <Text style={styles.hint}>
-        Los valores incluyen la tarifa de servicio de Xpertos. Al elegir te mostramos cómo pagar y el contrato para aceptarlo.
+        La tarifa de servicio de Xpertos es un porcentaje del valor de cada opción. Al elegir te mostramos cómo pagar y el contrato para aceptarlo.
       </Text>
     </View>
   );
@@ -144,8 +147,7 @@ const styles = StyleSheet.create({
   label: { fontSize: 12, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4, fontWeight: '700' },
   laborValue: { fontSize: 18, fontWeight: '800', color: colors.text },
   meta: { fontSize: 14, color: colors.text },
-  feeLabel: { fontSize: 14, color: colors.textMuted },
-  feeValue: { fontSize: 14, fontWeight: '700', color: colors.text },
+  optionFee: { fontSize: 12, color: colors.textMuted, fontStyle: 'italic' },
   line: { fontSize: 14, color: colors.text, lineHeight: 20 },
   lineMeta: { fontSize: 13, color: colors.textMuted },
   muted: { fontSize: 14, color: colors.textMuted, fontStyle: 'italic' },
