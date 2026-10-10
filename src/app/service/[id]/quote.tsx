@@ -15,13 +15,27 @@ import { Text } from '@/components/ui/text';
 import { colors, radius, spacing } from '@/constants/theme';
 import type { Tables } from '@/lib/database.types';
 import { formatCOP, parseMoney, parseQuantity, quantityToInput } from '@/lib/format';
-import { activityUnits, materialUnits } from '@/lib/labels';
+import { activityUnits, materialUnits, measureUnits } from '@/lib/labels';
 import { pickImages, removeServicePhoto, takePhoto, uploadServicePhoto } from '@/lib/photos';
 import { supabase } from '@/lib/supabase';
 import type { LocalFile } from '@/lib/upload';
 import { useAuth } from '@/providers/auth';
 
-type ItemDraft = { key: string; description: string; measurement: string; quantity: string; unit: string; unitPrice: string };
+/**
+ * Medidas de la actividad en dos casillas (a × b) y una unidad elegida de la lista; se guardan como
+ * texto ("3 × 2,5 m"). `legacyMeasurement` conserva una medida escrita a mano en versiones anteriores.
+ */
+type ItemDraft = {
+  key: string;
+  description: string;
+  measureA: string;
+  measureB: string;
+  measureUnit: string;
+  legacyMeasurement: string;
+  quantity: string;
+  unit: string;
+  unitPrice: string;
+};
 type MaterialDraft = { key: string; name: string; quantity: string; unit: string; estimatedCost: string; notes: string };
 
 type Loaded = {
@@ -34,10 +48,40 @@ type Loaded = {
 
 let keySeq = 0;
 const newKey = () => `k${Date.now()}-${keySeq++}`;
-const emptyItem = (): ItemDraft => ({ key: newKey(), description: '', measurement: '', quantity: '1', unit: 'und', unitPrice: '' });
+const emptyItem = (): ItemDraft => ({
+  key: newKey(),
+  description: '',
+  measureA: '',
+  measureB: '',
+  measureUnit: 'm',
+  legacyMeasurement: '',
+  quantity: '1',
+  unit: 'und',
+  unitPrice: '',
+});
+
+const cleanNumber = (value: string) => value.replace(/[^0-9.,]/g, '');
+
+/** "3 × 2,5 m" (o "3 x 2,5 m") → casillas; si no tiene ese formato, se conserva como medida anterior. */
+function parseMeasurement(value: string | null): Pick<ItemDraft, 'measureA' | 'measureB' | 'measureUnit' | 'legacyMeasurement'> {
+  const text = (value ?? '').trim();
+  const match = text.match(/^([\d.,]+)\s*(?:[x×*]\s*([\d.,]+))?\s*([a-zA-Z]+)?$/);
+  if (match && (!match[3] || measureUnits.includes(match[3].toLowerCase()))) {
+    return { measureA: match[1], measureB: match[2] ?? '', measureUnit: match[3]?.toLowerCase() ?? 'm', legacyMeasurement: '' };
+  }
+  return { measureA: '', measureB: '', measureUnit: 'm', legacyMeasurement: text };
+}
+
+/** Casillas → texto que se guarda: "3 × 2,5 m", "3 m" o la medida anterior si no se llenaron. */
+function formatMeasurement(item: ItemDraft): string | null {
+  const a = item.measureA.trim();
+  const b = item.measureB.trim();
+  if (!a && !b) return item.legacyMeasurement.trim() || null;
+  return `${[a, b].filter(Boolean).join(' × ')} ${item.measureUnit}`;
+}
 const emptyMaterial = (): MaterialDraft => ({ key: newKey(), name: '', quantity: '1', unit: 'und', estimatedCost: '', notes: '' });
 
-const isBlankItem = (i: ItemDraft) => !i.description.trim() && !i.measurement.trim() && !i.unitPrice.trim();
+const isBlankItem = (i: ItemDraft) => !i.description.trim() && !i.measureA.trim() && !i.measureB.trim() && !i.unitPrice.trim();
 const isBlankMaterial = (m: MaterialDraft) => !m.name.trim() && !m.notes.trim() && !m.estimatedCost.trim();
 
 function lineTotal(item: ItemDraft): number {
@@ -89,7 +133,7 @@ export default function QuoteScreen() {
           ? sortedItems.map((i) => ({
               key: i.id,
               description: i.description,
-              measurement: i.measurement ?? '',
+              ...parseMeasurement(i.measurement),
               quantity: quantityToInput(i.quantity),
               unit: i.unit,
               unitPrice: String(Math.round(Number(i.unit_price))),
@@ -215,7 +259,7 @@ export default function QuoteScreen() {
       const price = item.unitPrice.trim() ? parseMoney(item.unitPrice) : 0;
       itemRows.push({
         description: item.description.trim(),
-        measurement: item.measurement.trim() || null,
+        measurement: formatMeasurement(item),
         quantity,
         unit: item.unit,
         unit_price: price,
@@ -397,12 +441,45 @@ export default function QuoteScreen() {
             onChangeText={(description) => updateItem(item.key, { description })}
             placeholder="Ej. Cambio de sifón del lavaplatos"
           />
-          <Input
-            label="Medidas"
-            value={item.measurement}
-            onChangeText={(measurement) => updateItem(item.key, { measurement })}
-            placeholder="Ej. 3 x 2,5 m"
-          />
+          <Text style={styles.fieldLabel}>Medidas (opcional)</Text>
+          <View style={styles.measureRow}>
+            <Input
+              value={item.measureA}
+              onChangeText={(measureA) => updateItem(item.key, { measureA: cleanNumber(measureA) })}
+              keyboardType="decimal-pad"
+              placeholder="a"
+              accessibilityLabel="Medida a"
+              containerStyle={styles.measureInput}
+            />
+            <Text style={styles.measureTimes}>×</Text>
+            <Input
+              value={item.measureB}
+              onChangeText={(measureB) => updateItem(item.key, { measureB: cleanNumber(measureB) })}
+              keyboardType="decimal-pad"
+              placeholder="b"
+              accessibilityLabel="Medida b"
+              containerStyle={styles.measureInput}
+            />
+            <View style={styles.measureUnits} accessibilityRole="radiogroup" accessibilityLabel="Unidad de la medida">
+              {measureUnits.map((unit) => (
+                <Pressable
+                  key={unit}
+                  accessibilityRole="radio"
+                  aria-checked={item.measureUnit === unit}
+                  onPress={() => updateItem(item.key, { measureUnit: unit })}
+                  style={[styles.chip, item.measureUnit === unit && styles.chipSelected]}>
+                  <Text style={[styles.chipText, item.measureUnit === unit && styles.chipTextSelected]}>{unit}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+          {item.measureA && item.measureB && parseQuantity(item.measureA) > 0 && parseQuantity(item.measureB) > 0 ? (
+            <Text style={styles.measureHint}>
+              Área: {quantityToInput(Math.round(parseQuantity(item.measureA) * parseQuantity(item.measureB) * 100) / 100)} {item.measureUnit}²
+            </Text>
+          ) : item.legacyMeasurement && !item.measureA && !item.measureB ? (
+            <Text style={styles.measureHint}>Medida registrada: {item.legacyMeasurement}</Text>
+          ) : null}
           <View style={styles.inline}>
             <Input
               label="Cantidad"
@@ -561,6 +638,11 @@ const styles = StyleSheet.create({
   rowHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   rowTitle: { fontSize: 13, fontWeight: '800', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
   inline: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' },
+  measureRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap' },
+  measureInput: { width: 84 },
+  measureTimes: { fontSize: 18, fontWeight: '700', color: colors.textMuted },
+  measureUnits: { flexDirection: 'row', gap: spacing.xs, marginLeft: spacing.xs },
+  measureHint: { fontSize: 13, color: colors.textMuted, marginTop: -4 },
   qty: { flexBasis: 100, flexGrow: 1 },
   price: { flexBasis: 150, flexGrow: 2 },
   flex: { flexGrow: 1, flexBasis: 140 },

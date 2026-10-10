@@ -123,7 +123,9 @@ export const quoteStatus: Record<Enums<'quote_status'>, { label: string; tone: T
 };
 
 export const activityUnits = ['und', 'm²', 'ml', 'm³', 'global'];
-export const materialUnits = ['und', 'm²', 'ml', 'm³', 'kg', 'galón', 'bulto', 'caja', 'global'];
+export const materialUnits = ['und', 'm²', 'ml', 'm³', 'kg', 'galón', 'bulto x 25 kg', 'bulto x 50 kg', 'caja', 'global'];
+/** Unidades de las medidas de una actividad (a × b). */
+export const measureUnits = ['m', 'cm', 'mm'];
 
 export const payoutFrequencies: { value: Enums<'payout_frequency'>; label: string }[] = [
   { value: 'daily', label: 'Diario' },
