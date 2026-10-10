@@ -15,6 +15,7 @@ import { StagesSection } from '@/components/service/stages';
 import { Timeline } from '@/components/service/timeline';
 import { CloseWorkSection, WorkLogsSection, type WorkLog } from '@/components/service/work-logs';
 import { Badge } from '@/components/ui/badge';
+import { BackFallback } from '@/components/back-fallback';
 import { Button } from '@/components/ui/button';
 import { Card, KeyValue, SectionTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -25,6 +26,8 @@ import type { Enums, Tables } from '@/lib/database.types';
 import { formatCOP, formatDateTime, formatPlainDate } from '@/lib/format';
 import { pricingModeLabel, serviceStatus, serviceStatusHelp } from '@/lib/labels';
 import { supabase } from '@/lib/supabase';
+import { homeFor } from '@/lib/home';
+import { useRoleGuard } from '@/hooks/use-role-guard';
 import { useAuth } from '@/providers/auth';
 import { useFeedback } from '@/providers/feedback';
 
@@ -64,7 +67,9 @@ function parseSlots(value: unknown): Slot[] {
 export default function ServiceDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { confirm } = useFeedback();
-  const { session, profile } = useAuth();
+  const { session, profile, isApplicant } = useAuth();
+  // Sin sesión (p. ej. se cerró en otra pestaña) lleva al ingreso en vez de quedarse cargando.
+  const guard = useRoleGuard(['client', 'expert', 'admin']);
   const [detail, setDetail] = useState<Detail | null>(null);
   const [error, setError, errorSeq] = useErrorState();
   const [notFound, setNotFound] = useState(false);
@@ -139,8 +144,8 @@ export default function ServiceDetailScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      load();
-    }, [load])
+      load().catch(() => setError('No pudimos cargar la información. Revisa tu conexión e intenta de nuevo.'));
+    }, [load, setError])
   );
 
   const refresh = async () => {
@@ -162,6 +167,7 @@ export default function ServiceDetailScreen() {
     await load();
   };
 
+  if (guard) return guard;
   if (notFound) {
     return (
       <Screen>
@@ -173,7 +179,7 @@ export default function ServiceDetailScreen() {
     return (
       <Screen>
         <ErrorBanner seq={errorSeq} message={error} />
-        {!error ? <Loading /> : null}
+        {error ? <Button title="Reintentar" variant="outline" onPress={() => void load()} /> : <Loading />}
       </Screen>
     );
   }
@@ -197,6 +203,7 @@ export default function ServiceDetailScreen() {
   return (
     <Screen refreshing={refreshing} onRefresh={refresh}>
       <Stack.Screen options={{ title: service.title }} />
+      {profile ? <BackFallback href={homeFor(profile, isApplicant)} label="Ir al inicio" /> : null}
       <ErrorBanner seq={errorSeq} message={error} />
 
       <Card style={styles.card}>

@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { PhotoGrid } from '@/components/service/photo-grid';
 import { QuoteSummary } from '@/components/service/quote-summary';
+import { BackFallback } from '@/components/back-fallback';
 import { Button } from '@/components/ui/button';
 import { Card, SectionTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -17,8 +18,10 @@ import type { Tables } from '@/lib/database.types';
 import { formatCOP, parseMoney, parseQuantity, quantityToInput } from '@/lib/format';
 import { activityUnits, materialUnits, measureUnits } from '@/lib/labels';
 import { pickImages, removeServicePhoto, takePhoto, uploadServicePhoto } from '@/lib/photos';
+import { goBack } from '@/lib/navigation';
 import { supabase } from '@/lib/supabase';
 import type { LocalFile } from '@/lib/upload';
+import { useRoleGuard } from '@/hooks/use-role-guard';
 import { useAuth } from '@/providers/auth';
 
 /**
@@ -94,6 +97,8 @@ function lineTotal(item: ItemDraft): number {
 export default function QuoteScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { session } = useAuth();
+  // Sin sesión (p. ej. se cerró en otra pestaña) lleva al ingreso en vez de quedarse cargando.
+  const guard = useRoleGuard(['client', 'expert', 'admin']);
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [estimatedDays, setEstimatedDays] = useState('');
@@ -155,8 +160,8 @@ export default function QuoteScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      load();
-    }, [load])
+      load().catch(() => setError('No pudimos cargar la información. Revisa tu conexión e intenta de nuevo.'));
+    }, [load, setError])
   );
 
   /** Recarga solo las fotos del antes, sin tocar lo que el experto está editando en el formulario. */
@@ -166,6 +171,7 @@ export default function QuoteScreen() {
     setLoaded((prev) => (prev ? { ...prev, photos: photos ?? [] } : prev));
   };
 
+  if (guard) return guard;
   if (notFound) {
     return (
       <Screen>
@@ -196,6 +202,7 @@ export default function QuoteScreen() {
     return (
       <Screen>
         <Stack.Screen options={{ title: 'Cotización' }} />
+        <BackFallback href={{ pathname: '/service/[id]', params: { id: id ?? '' } }} label="Volver al servicio" />
         <EmptyState icon="lock-closed-outline" title="Solo el experto asignado puede cotizar este servicio" />
       </Screen>
     );
@@ -206,6 +213,7 @@ export default function QuoteScreen() {
     return (
       <Screen>
         <Stack.Screen options={{ title: 'Cotización' }} />
+        <BackFallback href={{ pathname: '/service/[id]', params: { id: id ?? '' } }} label="Volver al servicio" />
         {quote?.status === 'approved' && quote.total == null ? (
           <InfoBanner message="Xpertos aprobó tu cotización y se la presentó al cliente: está eligiendo entre solo mano de obra y todo incluido." />
         ) : quote?.status === 'submitted' || service.status === 'quoting' ? (
@@ -236,7 +244,7 @@ export default function QuoteScreen() {
             </Card>
           </>
         ) : null}
-        <Button title="Volver al servicio" variant="outline" onPress={() => router.back()} />
+        <Button title="Volver al servicio" variant="outline" onPress={() => goBack({ pathname: '/service/[id]', params: { id: service.id } })} />
       </Screen>
     );
   }
@@ -399,6 +407,7 @@ export default function QuoteScreen() {
   return (
     <Screen>
       <Stack.Screen options={{ title: 'Cotización' }} />
+        <BackFallback href={{ pathname: '/service/[id]', params: { id: id ?? '' } }} label="Volver al servicio" />
       {quote?.status === 'returned' ? (
         <View style={styles.returned}>
           <Ionicons name="arrow-undo-outline" size={20} color={colors.warning} />

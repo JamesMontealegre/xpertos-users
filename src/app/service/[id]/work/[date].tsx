@@ -1,9 +1,10 @@
-import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
 import { PhotoGrid } from '@/components/service/photo-grid';
 import type { WorkLog } from '@/components/service/work-logs';
+import { BackFallback } from '@/components/back-fallback';
 import { Button } from '@/components/ui/button';
 import { Card, KeyValue, SectionTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -16,8 +17,10 @@ import type { Tables } from '@/lib/database.types';
 import { capitalizeFirst, formatPlainDate, formatTime, isValidDate, isValidTime, nowTimeCO, todayCO } from '@/lib/format';
 import { completeTime } from '@/lib/masks';
 import { pickImages, removeServicePhoto, takePhoto, uploadServicePhoto } from '@/lib/photos';
+import { goBack } from '@/lib/navigation';
 import { supabase } from '@/lib/supabase';
 import type { LocalFile } from '@/lib/upload';
+import { useRoleGuard } from '@/hooks/use-role-guard';
 import { useAuth } from '@/providers/auth';
 
 type Loaded = { service: Tables<'services'>; log: WorkLog | null };
@@ -26,6 +29,8 @@ type Loaded = { service: Tables<'services'>; log: WorkLog | null };
 export default function WorkDayScreen() {
   const { id, date } = useLocalSearchParams<{ id: string; date: string }>();
   const { session } = useAuth();
+  // Sin sesión (p. ej. se cerró en otra pestaña) lleva al ingreso en vez de quedarse cargando.
+  const guard = useRoleGuard(['client', 'expert', 'admin']);
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [checkIn, setCheckIn] = useState('');
@@ -55,8 +60,8 @@ export default function WorkDayScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      load();
-    }, [load])
+      load().catch(() => setError('No pudimos cargar la información. Revisa tu conexión e intenta de nuevo.'));
+    }, [load, setError])
   );
 
   /** Recarga la jornada (fotos incluidas) sin tocar lo que se está escribiendo en el formulario. */
@@ -66,6 +71,7 @@ export default function WorkDayScreen() {
     setLoaded((prev) => (prev ? { ...prev, log: log ?? null } : prev));
   };
 
+  if (guard) return guard;
   if (notFound) {
     return (
       <Screen>
@@ -170,6 +176,7 @@ export default function WorkDayScreen() {
   return (
     <Screen>
       <Stack.Screen options={{ title }} />
+      <BackFallback href={{ pathname: '/service/[id]', params: { id: service.id } }} label="Volver al servicio" />
       <Text style={styles.title}>{capitalizeFirst(formatPlainDate(date))}</Text>
       <View style={styles.tags}>
         {isToday ? <Text style={[styles.tag, styles.tagToday]}>Hoy</Text> : null}
@@ -250,7 +257,7 @@ export default function WorkDayScreen() {
         ) : null}
       </Card>
 
-      <Button title="Volver al servicio" variant="ghost" onPress={() => router.back()} />
+      <Button title="Volver al servicio" variant="ghost" onPress={() => goBack({ pathname: '/service/[id]', params: { id: service.id } })} />
     </Screen>
   );
 }
