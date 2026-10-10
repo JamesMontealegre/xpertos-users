@@ -6,7 +6,7 @@ import { RedirectOnce } from '@/components/redirect-once';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { ErrorBanner, Loading, Screen } from '@/components/ui/screen';
+import { ErrorBanner, Loading, Screen, useErrorState } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { colors, spacing } from '@/constants/theme';
 import { homeFor } from '@/lib/home';
@@ -23,7 +23,7 @@ export default function ChangePasswordScreen() {
   const { session, profile, isApplicant, loading, signOut } = useAuth();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError, errorSeq] = useErrorState();
   const [saving, setSaving] = useState(false);
 
   if (loading) return <Loading />;
@@ -59,7 +59,7 @@ export default function ChangePasswordScreen() {
             Entraste con una clave temporal. Crea tu propia contraseña para continuar; desde ese momento la clave temporal deja
             de servir.
           </Text>
-          <ErrorBanner message={error} />
+          <ErrorBanner seq={errorSeq} message={error} />
           <Input
             label="Nueva contraseña"
             value={password}

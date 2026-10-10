@@ -4,7 +4,7 @@ import { StyleSheet } from 'react-native';
 import { Button } from '@/components/ui/button';
 import { Card, SectionTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { ErrorBanner } from '@/components/ui/screen';
+import { ErrorBanner, useErrorState } from '@/components/ui/screen';
 import { StarRating } from '@/components/ui/star-rating';
 import { Text } from '@/components/ui/text';
 import { colors, spacing } from '@/constants/theme';
@@ -24,7 +24,7 @@ export function ReviewSection({ service, reviews, userId, counterpartName, onCha
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError, errorSeq] = useErrorState();
 
   const mine = reviews.find((r) => r.author_id === userId);
   const received = reviews.find((r) => r.target_id === userId);
@@ -51,7 +51,7 @@ export function ReviewSection({ service, reviews, userId, counterpartName, onCha
     <>
       <SectionTitle>Calificación</SectionTitle>
       <Card style={styles.card}>
-        <ErrorBanner message={error} />
+        <ErrorBanner seq={errorSeq} message={error} />
         {mine ? (
           <>
             <Text style={styles.label}>Tu calificación para {counterpartName}</Text>

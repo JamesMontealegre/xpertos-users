@@ -5,7 +5,7 @@ import { StyleSheet } from 'react-native';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { ErrorBanner, InfoBanner } from '@/components/ui/screen';
+import { ErrorBanner, InfoBanner, useErrorState } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { colors, spacing } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
@@ -20,7 +20,7 @@ export function ProfileForm() {
   const [phone, setPhone] = useState(profile?.phone ?? '');
   const [city, setCity] = useState(profile?.city ?? '');
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError, errorSeq] = useErrorState();
   const [saved, setSaved] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -52,7 +52,7 @@ export function ProfileForm() {
     <>
       <Card style={styles.card}>
         <Text style={styles.email}>{profile?.email ?? session?.user.email}</Text>
-        <ErrorBanner message={error} />
+        <ErrorBanner seq={errorSeq} message={error} />
         {saved ? <InfoBanner tone="success" message="Perfil actualizado." /> : null}
         <Input label="Nombre completo" value={fullName} onChangeText={setFullName} error={submitted ? errors.fullName : null} />
         <Input

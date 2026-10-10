@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, SectionTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { DateInput, TimeInput } from '@/components/ui/masked-input';
-import { ErrorBanner, InfoBanner, Screen } from '@/components/ui/screen';
+import { ErrorBanner, InfoBanner, Screen, useErrorState } from '@/components/ui/screen';
 import { Select } from '@/components/ui/select';
 import { Text } from '@/components/ui/text';
 import { colors, radius, spacing } from '@/constants/theme';
@@ -38,7 +38,7 @@ export default function NewServiceScreen() {
   const [slotDraft, setSlotDraft] = useState<Slot>({ date: '', from: '', to: '' });
   const [slotError, setSlotError] = useState<string | null>(null);
   const [photos, setPhotos] = useState<Photo[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError, errorSeq] = useErrorState();
   const [saving, setSaving] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
 
@@ -52,7 +52,7 @@ export default function NewServiceScreen() {
         if (queryError) setError(`No pudimos cargar las categorías: ${queryError.message}`);
         else setCategories(data ?? []);
       });
-  }, []);
+  }, [setError]);
 
   const addSlot = () => {
     setSlotError(null);
@@ -139,7 +139,7 @@ export default function NewServiceScreen() {
 
   return (
     <Screen title="Nuevo servicio" subtitle="Cuéntanos qué necesitas y cuándo puedes recibir al experto" withTabs>
-      <ErrorBanner message={error} />
+      <ErrorBanner seq={errorSeq} message={error} />
       {progress ? <InfoBanner message={progress} /> : null}
 
       <Card style={styles.card}>

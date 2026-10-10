@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, KeyValue, SectionTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { ErrorBanner, InfoBanner, Loading, NoticeBanner, Screen } from '@/components/ui/screen';
+import { ErrorBanner, InfoBanner, Loading, NoticeBanner, Screen, useErrorState } from '@/components/ui/screen';
 import { Select } from '@/components/ui/select';
 import { Text } from '@/components/ui/text';
 import { colors, spacing } from '@/constants/theme';
@@ -54,7 +54,7 @@ export default function ApplicationScreen() {
     bio: '',
   });
   const [docKind, setDocKind] = useState<Enums<'document_kind'> | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError, errorSeq] = useErrorState();
   const [notice, setNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -109,7 +109,7 @@ export default function ApplicationScreen() {
         .order('created_at');
       setDocuments(docs ?? []);
     }
-  }, [session]);
+  }, [session, setError]);
 
   useFocusEffect(
     useCallback(() => {
@@ -307,7 +307,7 @@ export default function ApplicationScreen() {
       refreshing={refreshing}
       onRefresh={refresh}
       withTabs>
-      <ErrorBanner message={error} />
+      <ErrorBanner seq={errorSeq} message={error} />
       <NoticeBanner message={notice} />
 
       {application && !showForm ? (

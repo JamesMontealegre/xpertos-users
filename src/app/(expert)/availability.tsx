@@ -6,7 +6,7 @@ import { Pressable, StyleSheet, Switch, View } from 'react-native';
 import { Button } from '@/components/ui/button';
 import { Card, SectionTitle } from '@/components/ui/card';
 import { TimeInput } from '@/components/ui/masked-input';
-import { ErrorBanner, Loading, Screen } from '@/components/ui/screen';
+import { ErrorBanner, Loading, Screen, useErrorState } from '@/components/ui/screen';
 import { Select } from '@/components/ui/select';
 import { Text } from '@/components/ui/text';
 import { colors, radius, spacing } from '@/constants/theme';
@@ -26,7 +26,7 @@ export default function AvailabilityScreen() {
   const [expertProfile, setExpertProfile] = useState<Tables<'expert_profiles'> | null | undefined>(undefined);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [draft, setDraft] = useState({ weekday: '1', start: '', end: '' });
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError, errorSeq] = useErrorState();
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -49,7 +49,7 @@ export default function AvailabilityScreen() {
     setError(null);
     setExpertProfile(ep);
     setSlots(av ?? []);
-  }, [session]);
+  }, [session, setError]);
 
   useFocusEffect(
     useCallback(() => {
@@ -108,7 +108,7 @@ export default function AvailabilityScreen() {
 
   return (
     <Screen title="Disponibilidad" subtitle="Indica cuándo puedes atender servicios" refreshing={refreshing} onRefresh={refresh} withTabs>
-      <ErrorBanner message={error} />
+      <ErrorBanner seq={errorSeq} message={error} />
 
       <Card style={styles.switchCard}>
         <View style={styles.switchText}>

@@ -9,7 +9,7 @@ import { Card, KeyValue, SectionTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { TimeInput } from '@/components/ui/masked-input';
-import { ErrorBanner, InfoBanner, Loading, NoticeBanner, Screen } from '@/components/ui/screen';
+import { ErrorBanner, InfoBanner, Loading, NoticeBanner, Screen, useErrorState } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { colors, spacing } from '@/constants/theme';
 import type { Tables } from '@/lib/database.types';
@@ -31,7 +31,7 @@ export default function WorkDayScreen() {
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
   const [notes, setNotes] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError, errorSeq] = useErrorState();
   const [notice, setNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -51,7 +51,7 @@ export default function WorkDayScreen() {
     setCheckIn(log?.check_in ? formatTime(log.check_in) : '');
     setCheckOut(log?.check_out ? formatTime(log.check_out) : '');
     setNotes(log?.notes ?? '');
-  }, [session, id, date]);
+  }, [session, id, date, setError]);
 
   useFocusEffect(
     useCallback(() => {
@@ -76,7 +76,7 @@ export default function WorkDayScreen() {
   if (!loaded || !session) {
     return (
       <Screen>
-        <ErrorBanner message={error} />
+        <ErrorBanner seq={errorSeq} message={error} />
         {!error ? <Loading /> : null}
       </Screen>
     );
@@ -176,7 +176,7 @@ export default function WorkDayScreen() {
         {isFirstDay ? <Text style={[styles.tag, styles.tagRequired]}>Obligatorio · primer día</Text> : null}
         {service.payout_frequency === 'daily' ? <Text style={[styles.tag, styles.tagRequired]}>Pago diario: jornada obligatoria</Text> : null}
       </View>
-      <ErrorBanner message={error} />
+      <ErrorBanner seq={errorSeq} message={error} />
       <NoticeBanner message={notice} />
       {!editable ? (
         <InfoBanner

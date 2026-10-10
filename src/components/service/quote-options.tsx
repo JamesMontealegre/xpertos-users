@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
-import { ErrorBanner } from '@/components/ui/screen';
+import { ErrorBanner, useErrorState } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { colors, radius, spacing } from '@/constants/theme';
 import type { Enums, Tables } from '@/lib/database.types';
@@ -36,7 +36,7 @@ export function QuoteOptions({
 }) {
   const [selected, setSelected] = useState<Mode | null>(null);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError, errorSeq] = useErrorState();
 
   const totals: Record<Mode, number | null> = {
     labor_only: quote.total_labor_only != null ? Number(quote.total_labor_only) : null,
@@ -123,7 +123,7 @@ export function QuoteOptions({
         })}
       </View>
 
-      <ErrorBanner message={error} />
+      <ErrorBanner seq={errorSeq} message={error} />
       <Button
         title={chosen ? `Elegir ${chosen.short.toLowerCase()} · ${formatCOP(totals[chosen.value])}` : 'Elige una opción'}
         onPress={confirm}

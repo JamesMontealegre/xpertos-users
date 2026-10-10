@@ -6,7 +6,7 @@ import { Brand } from '@/components/brand';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { ErrorBanner, Screen } from '@/components/ui/screen';
+import { ErrorBanner, Screen, useErrorState } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { colors, spacing } from '@/constants/theme';
 import { supabase, translateAuthError } from '@/lib/supabase';
@@ -44,7 +44,7 @@ export default function RegisterScreen() {
   // Los errores de un campo se muestran al salir de él o al intentar crear la cuenta.
   const [touched, setTouched] = useState<Partial<Record<Field, boolean>>>({});
   const [submitted, setSubmitted] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError, errorSeq] = useErrorState();
   const [loading, setLoading] = useState(false);
 
   const errors = validate(values);
@@ -88,7 +88,7 @@ export default function RegisterScreen() {
         <Brand tagline="Crea tu cuenta en Xpertos" />
         <Card style={styles.card}>
           <Text style={styles.title}>Registro</Text>
-          <ErrorBanner message={error ?? (submitted && hasErrors ? 'Revisa los campos marcados en rojo.' : null)} />
+          <ErrorBanner seq={errorSeq} message={error ?? (submitted && hasErrors ? 'Revisa los campos marcados en rojo.' : null)} />
 
           <Text style={styles.help}>Crea tu cuenta para solicitar servicios para tu hogar u obra. Todos los campos son obligatorios.</Text>
 

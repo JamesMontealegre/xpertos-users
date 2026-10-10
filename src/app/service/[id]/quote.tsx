@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, SectionTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
-import { ErrorBanner, InfoBanner, Loading, NoticeBanner, Screen } from '@/components/ui/screen';
+import { ErrorBanner, InfoBanner, Loading, NoticeBanner, Screen, useErrorState } from '@/components/ui/screen';
 import { Select } from '@/components/ui/select';
 import { Text } from '@/components/ui/text';
 import { colors, radius, spacing } from '@/constants/theme';
@@ -100,7 +100,7 @@ export default function QuoteScreen() {
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<ItemDraft[]>([emptyItem()]);
   const [materials, setMaterials] = useState<MaterialDraft[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError, errorSeq] = useErrorState();
   const [notice, setNotice] = useState<string | null>(null);
   const [saving, setSaving] = useState<'draft' | 'submit' | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -151,7 +151,7 @@ export default function QuoteScreen() {
         }))
       );
     }
-  }, [session, id]);
+  }, [session, id, setError]);
 
   useFocusEffect(
     useCallback(() => {
@@ -176,7 +176,7 @@ export default function QuoteScreen() {
   if (!loaded || !session) {
     return (
       <Screen>
-        <ErrorBanner message={error} />
+        <ErrorBanner seq={errorSeq} message={error} />
         {!error ? <Loading /> : null}
       </Screen>
     );
@@ -409,7 +409,7 @@ export default function QuoteScreen() {
         </View>
       ) : null}
       <Text style={styles.serviceTitle}>{service.title}</Text>
-      <ErrorBanner message={error} />
+      <ErrorBanner seq={errorSeq} message={error} />
       <NoticeBanner message={notice} />
 
       <InfoBanner message="Cotiza tu mano de obra y lista los materiales que necesita el trabajo. Xpertos le presenta al cliente tu cotización y él decide si compra los materiales o si los cubre Xpertos (todo incluido)." />

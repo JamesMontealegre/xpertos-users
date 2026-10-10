@@ -7,7 +7,7 @@ import { PhotoGrid } from '@/components/service/photo-grid';
 import { Button } from '@/components/ui/button';
 import { Card, SectionTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { ErrorBanner, InfoBanner } from '@/components/ui/screen';
+import { ErrorBanner, InfoBanner, useErrorState } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { colors, radius, spacing } from '@/constants/theme';
 import type { Tables } from '@/lib/database.types';
@@ -159,7 +159,7 @@ export function CloseWorkSection({ service, onChanged }: { service: Tables<'serv
   const [missing, setMissing] = useState<string[] | null>(null);
   const [notes, setNotes] = useState('');
   const [closing, setClosing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError, errorSeq] = useErrorState();
 
   const check = async () => {
     setError(null);
@@ -189,7 +189,7 @@ export function CloseWorkSection({ service, onChanged }: { service: Tables<'serv
           Cuando termines, cierra el trabajo: el servicio pasa a En observación y Xpertos verifica con el cliente en máximo 1 día
           hábil.
         </Text>
-        <ErrorBanner message={error} />
+        <ErrorBanner seq={errorSeq} message={error} />
         {missing === null ? (
           <Button title="Cerrar trabajo" variant="secondary" onPress={check} loading={checking} />
         ) : missing.length > 0 ? (

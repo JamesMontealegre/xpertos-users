@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -89,12 +89,31 @@ export function Loading({ message = 'Cargando…' }: { message?: string }) {
   );
 }
 
-/** Error de la pantalla. Al aparecer uno nuevo, la pantalla sube para que se vea aunque se esté abajo. */
-export function ErrorBanner({ message }: { message?: string | null }) {
+/**
+ * Estado de error de una pantalla. Cada vez que se registra un error cuenta como uno nuevo (`seq`), aunque
+ * el texto sea el mismo de antes: así el aviso se vuelve a mostrar en cada intento fallido.
+ */
+export function useErrorState() {
+  const [state, setState] = useState<{ message: string | null; seq: number }>({ message: null, seq: 0 });
+  const setError = useCallback(
+    (message: string | null) => setState((current) => ({ message, seq: message ? current.seq + 1 : current.seq })),
+    []
+  );
+  return [state.message, setError, state.seq] as const;
+}
+
+/**
+ * Error de la pantalla. En cada error nuevo (incluso si se repite el mismo texto) la pantalla sube para
+ * que se vea y además sale un aviso flotante, por si se está al final de un formulario.
+ */
+export function ErrorBanner({ message, seq = 0 }: { message?: string | null; seq?: number }) {
   const { scrollToTop } = useContext(ScreenScrollContext);
+  const { toast } = useFeedback();
   useEffect(() => {
-    if (message) scrollToTop();
-  }, [message, scrollToTop]);
+    if (!message) return;
+    scrollToTop();
+    toast(message, 'error');
+  }, [message, seq, scrollToTop, toast]);
   if (!message) return null;
   return (
     <View style={styles.errorBanner}>

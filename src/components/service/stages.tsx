@@ -6,7 +6,7 @@ import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, SectionTitle } from '@/components/ui/card';
-import { ErrorBanner, InfoBanner, NoticeBanner } from '@/components/ui/screen';
+import { ErrorBanner, InfoBanner, NoticeBanner, useErrorState } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { colors, radius, spacing } from '@/constants/theme';
 import type { Tables } from '@/lib/database.types';
@@ -29,7 +29,7 @@ type Props = {
 /** Cobro del servicio (un único pago tras aprobar la cotización), cuentas de recaudo y comprobantes. */
 export function StagesSection({ service, stages, payments, accounts, isClient, userId, onChanged }: Props) {
   const [uploadingStage, setUploadingStage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError, errorSeq] = useErrorState();
   const [notice, setNotice] = useState<string | null>(null);
 
   const registerProof = async (stage: Tables<'service_stages'>, file: LocalFile) => {
@@ -92,7 +92,7 @@ export function StagesSection({ service, stages, payments, accounts, isClient, u
   return (
     <>
       <SectionTitle right={<Text style={styles.total}>Total {formatCOP(total)}</Text>}>Pago del servicio</SectionTitle>
-      <ErrorBanner message={error} />
+      <ErrorBanner seq={errorSeq} message={error} />
       <NoticeBanner message={notice} />
       {stages.map((stage) => {
         const status = stageStatus[stage.status];

@@ -18,7 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, KeyValue, SectionTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { ErrorBanner, InfoBanner, Loading, Screen } from '@/components/ui/screen';
+import { ErrorBanner, InfoBanner, Loading, Screen, useErrorState } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { colors, radius, spacing } from '@/constants/theme';
 import type { Enums, Tables } from '@/lib/database.types';
@@ -66,7 +66,7 @@ export default function ServiceDetailScreen() {
   const { confirm } = useFeedback();
   const { session, profile } = useAuth();
   const [detail, setDetail] = useState<Detail | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError, errorSeq] = useErrorState();
   const [notFound, setNotFound] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [updating, setUpdating] = useState(false);
@@ -135,7 +135,7 @@ export default function ServiceDetailScreen() {
       logs: logs.data ?? [],
       holidays: (holidays.data ?? []).map((h) => h.day),
     });
-  }, [session, id]);
+  }, [session, id, setError]);
 
   useFocusEffect(
     useCallback(() => {
@@ -172,7 +172,7 @@ export default function ServiceDetailScreen() {
   if (!detail || !session || !profile) {
     return (
       <Screen>
-        <ErrorBanner message={error} />
+        <ErrorBanner seq={errorSeq} message={error} />
         {!error ? <Loading /> : null}
       </Screen>
     );
@@ -197,7 +197,7 @@ export default function ServiceDetailScreen() {
   return (
     <Screen refreshing={refreshing} onRefresh={refresh}>
       <Stack.Screen options={{ title: service.title }} />
-      <ErrorBanner message={error} />
+      <ErrorBanner seq={errorSeq} message={error} />
 
       <Card style={styles.card}>
         <View style={styles.headerRow}>

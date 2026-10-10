@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, SectionTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ErrorBanner } from '@/components/ui/screen';
+import { ErrorBanner, useErrorState } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { colors, spacing } from '@/constants/theme';
 import type { Tables } from '@/lib/database.types';
@@ -28,7 +28,7 @@ export function ContractSection({ contract, signatures, service, userId, onChang
   const [expanded, setExpanded] = useState(false);
   const [accepted, setAccepted] = useState(false);
   const [signing, setSigning] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError, errorSeq] = useErrorState();
   const [downloading, setDownloading] = useState(false);
 
   const clientSignature = signatures.find((s) => s.signer_id === service.client_id);
@@ -71,7 +71,7 @@ export function ContractSection({ contract, signatures, service, userId, onChang
     <>
       <SectionTitle right={<Badge label={status.label} tone={status.tone} />}>Contrato</SectionTitle>
       <Card style={styles.card}>
-        <ErrorBanner message={error} />
+        <ErrorBanner seq={errorSeq} message={error} />
         <View style={styles.signatures}>
           <SignatureState label="Cliente" signature={clientSignature} />
           <SignatureState label="Experto" signature={expertSignature} />

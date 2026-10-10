@@ -6,7 +6,7 @@ import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import { Brand } from '@/components/brand';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { ErrorBanner, Screen } from '@/components/ui/screen';
+import { ErrorBanner, Screen, useErrorState } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { colors, spacing } from '@/constants/theme';
 import { useRoleGuard } from '@/hooks/use-role-guard';
@@ -36,7 +36,7 @@ const VIEWS: ViewOption[] = [
 export default function AdminScreen() {
   const guard = useRoleGuard(['admin'], { agents: true });
   const { signOut, profile, session } = useAuth();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError, errorSeq] = useErrorState();
   const [busy, setBusy] = useState<ViewOption['key'] | null>(null);
   if (guard) return guard;
 
@@ -94,7 +94,7 @@ export default function AdminScreen() {
         <Text style={styles.help}>
           Elige qué frente de la app quieres probar. Para gestionar solicitudes, servicios y pagos usa el panel de administración web.
         </Text>
-        <ErrorBanner message={error} />
+        <ErrorBanner seq={errorSeq} message={error} />
         {VIEWS.map((view) => (
           <Pressable key={view.key} accessibilityRole="button" onPress={() => open(view.key)} disabled={busy !== null}>
             <Card style={[styles.option, busy === view.key && styles.optionBusy]}>

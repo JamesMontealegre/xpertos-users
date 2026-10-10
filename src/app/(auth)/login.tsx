@@ -6,7 +6,7 @@ import { Brand } from '@/components/brand';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { ErrorBanner, Screen } from '@/components/ui/screen';
+import { ErrorBanner, Screen, useErrorState } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { colors, spacing } from '@/constants/theme';
 import { supabase, translateAuthError } from '@/lib/supabase';
@@ -14,7 +14,7 @@ import { supabase, translateAuthError } from '@/lib/supabase';
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError, errorSeq] = useErrorState();
   const [loading, setLoading] = useState(false);
 
   const submit = async () => {
@@ -42,7 +42,7 @@ export default function LoginScreen() {
         <Brand />
         <Card style={styles.card}>
           <Text style={styles.title}>Ingresar</Text>
-          <ErrorBanner message={error} />
+          <ErrorBanner seq={errorSeq} message={error} />
           <Input
             label="Correo electrónico"
             value={email}

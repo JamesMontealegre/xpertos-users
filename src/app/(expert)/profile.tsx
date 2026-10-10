@@ -6,7 +6,7 @@ import { ProfileForm } from '@/components/profile-form';
 import { Button } from '@/components/ui/button';
 import { Card, SectionTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { ErrorBanner, InfoBanner, Screen } from '@/components/ui/screen';
+import { ErrorBanner, InfoBanner, Screen, useErrorState } from '@/components/ui/screen';
 import { Select } from '@/components/ui/select';
 import { StarRating } from '@/components/ui/star-rating';
 import { Text } from '@/components/ui/text';
@@ -23,7 +23,7 @@ export default function ExpertProfileScreen() {
   const [bio, setBio] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError, errorSeq] = useErrorState();
   const [payoutMethod, setPayoutMethod] = useState<Enums<'payout_method'> | null>(null);
   const [payoutAccount, setPayoutAccount] = useState('');
   const [savingPayout, setSavingPayout] = useState(false);
@@ -101,7 +101,7 @@ export default function ExpertProfileScreen() {
 
       <SectionTitle>Presentación</SectionTitle>
       <Card style={styles.card}>
-        <ErrorBanner message={error} />
+        <ErrorBanner seq={errorSeq} message={error} />
         {saved ? <InfoBanner tone="success" message="Presentación actualizada." /> : null}
         <Input
           label="Bio"

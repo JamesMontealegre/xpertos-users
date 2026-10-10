@@ -3,14 +3,14 @@ import { useCallback, useState } from 'react';
 
 import { ServiceCard, type ServiceListItem } from '@/components/service-card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { ErrorBanner, Loading, Screen } from '@/components/ui/screen';
+import { ErrorBanner, Loading, Screen, useErrorState } from '@/components/ui/screen';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/providers/auth';
 
 export default function MyServicesScreen() {
   const { session } = useAuth();
   const [services, setServices] = useState<ServiceListItem[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError, errorSeq] = useErrorState();
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
@@ -26,7 +26,7 @@ export default function MyServicesScreen() {
       setError(null);
       setServices(data);
     }
-  }, [session]);
+  }, [session, setError]);
 
   useFocusEffect(
     useCallback(() => {
@@ -47,7 +47,7 @@ export default function MyServicesScreen() {
       refreshing={refreshing}
       onRefresh={refresh}
       withTabs>
-      <ErrorBanner message={error} />
+      <ErrorBanner seq={errorSeq} message={error} />
       {services === null && !error ? (
         <Loading />
       ) : services && services.length === 0 ? (

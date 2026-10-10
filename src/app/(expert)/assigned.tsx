@@ -5,7 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import { ServiceCard, type ServiceListItem } from '@/components/service-card';
 import { SectionTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import { ErrorBanner, Loading, Screen } from '@/components/ui/screen';
+import { ErrorBanner, Loading, Screen, useErrorState } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { colors, spacing } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
@@ -28,7 +28,7 @@ const groups: { key: string; title: string; hint: string; statuses: ServiceListI
 export default function AssignedServicesScreen() {
   const { session } = useAuth();
   const [services, setServices] = useState<ServiceListItem[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError, errorSeq] = useErrorState();
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
@@ -43,7 +43,7 @@ export default function AssignedServicesScreen() {
       setError(null);
       setServices(data);
     }
-  }, [session]);
+  }, [session, setError]);
 
   useFocusEffect(
     useCallback(() => {
@@ -61,7 +61,7 @@ export default function AssignedServicesScreen() {
 
   return (
     <Screen title="Servicios asignados" subtitle="Tus servicios según la etapa en que están" refreshing={refreshing} onRefresh={refresh} withTabs>
-      <ErrorBanner message={error} />
+      <ErrorBanner seq={errorSeq} message={error} />
       {services === null && !error ? (
         <Loading />
       ) : services && services.length === 0 ? (
