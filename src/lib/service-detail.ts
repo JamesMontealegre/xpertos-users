@@ -10,6 +10,8 @@ export type ServiceDetail = {
   stages: Tables<'service_stages'>[];
   payments: Tables<'payments'>[];
   contract: Tables<'contracts'> | null;
+  /** Orden de servicio del experto (solo la ven el experto asignado y el admin). */
+  order: Tables<'service_orders'> | null;
   signatures: Tables<'contract_signatures'>[];
   reviews: Tables<'service_reviews'>[];
   events: Tables<'service_events'>[];

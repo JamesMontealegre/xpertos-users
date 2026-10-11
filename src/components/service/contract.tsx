@@ -128,7 +128,7 @@ export function ContractSection({ contract, signatures, service, userId, onChang
             </Text>
           </View>
         ) : mySignature ? (
-          <Text style={styles.signed}>Firmaste este contrato el {formatDateTime(mySignature.signed_at)}.</Text>
+          <Text style={styles.signed}>Firmaste este contrato · {formatDateTime(mySignature.signed_at)}</Text>
         ) : null}
       </SectionBody>
     </>

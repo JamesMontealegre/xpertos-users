@@ -138,7 +138,7 @@ export function contractHtml(contract: ContractLike): string {
  * En web, Print.printAsync imprime la página actual: se monta el contrato en un contenedor que es
  * lo único visible al imprimir y se retira al cerrar el diálogo.
  */
-async function printOnWeb(contract: ContractLike) {
+async function printOnWeb(contract: ContractLike, title: string) {
   const doc = window.document;
   const container = doc.createElement('div');
   container.id = 'xp-contract-print';
@@ -158,7 +158,7 @@ async function printOnWeb(contract: ContractLike) {
   doc.body.appendChild(container);
 
   const previousTitle = doc.title;
-  doc.title = 'Contrato Xpertos';
+  doc.title = title;
   let cleaned = false;
   const cleanup = () => {
     if (cleaned) return;
@@ -182,9 +182,9 @@ async function printOnWeb(contract: ContractLike) {
  * - iOS/Android: genera el PDF con expo-print y abre la hoja de compartir (guardar en Archivos, enviar…).
  * - Web: abre el diálogo de impresión del navegador (desde ahí se guarda como PDF).
  */
-export async function downloadContract(contract: ContractLike): Promise<void> {
+export async function downloadContract(contract: ContractLike, title = 'Contrato Xpertos'): Promise<void> {
   if (Platform.OS === 'web') {
-    await printOnWeb(contract);
+    await printOnWeb(contract, title);
     return;
   }
   const { uri } = await Print.printToFileAsync({ html: contractHtml(contract) });
@@ -192,7 +192,7 @@ export async function downloadContract(contract: ContractLike): Promise<void> {
     await Sharing.shareAsync(uri, {
       mimeType: 'application/pdf',
       UTI: 'com.adobe.pdf',
-      dialogTitle: 'Contrato de prestación de servicios',
+      dialogTitle: title,
     });
   } else {
     await Print.printAsync({ uri });

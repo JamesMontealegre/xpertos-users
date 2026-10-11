@@ -177,6 +177,13 @@ export const applicationStatus: Record<Enums<'application_status'>, { label: str
   expired: { label: 'Vencida', tone: 'slate' },
 };
 
+/** Estado de la orden de servicio del experto. */
+export const serviceOrderStatus: Record<string, { label: string; tone: Tone }> = {
+  pending: { label: 'Por aceptar', tone: 'amber' },
+  accepted: { label: 'Aceptada', tone: 'green' },
+  void: { label: 'Anulada', tone: 'red' },
+};
+
 export const contractStatus: Record<Enums<'contract_status'>, { label: string; tone: Tone }> = {
   draft: { label: 'Borrador', tone: 'slate' },
   pending_signatures: { label: 'Pendiente de tu firma', tone: 'amber' },
@@ -271,6 +278,8 @@ export const eventLabels: Record<string, string> = {
   payout_frequency_set: 'Periodicidad de pago elegida',
   contract_created: 'Contrato generado',
   contract_signed: 'Contrato firmado',
+  service_order_created: 'Orden de servicio generada',
+  service_order_accepted: 'Orden de servicio aceptada',
   work_closed: 'Trabajo cerrado',
   review_created: 'Calificación registrada',
 };

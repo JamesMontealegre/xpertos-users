@@ -46,7 +46,7 @@ export default function ServiceDetailScreen() {
     const isClient = service.client_id === session.user.id;
     const counterpartId = isClient ? service.expert_id : service.client_id;
     const hasWork = WORK_STATUSES.includes(service.status);
-    const [photos, stages, payments, contract, reviews, events, counterpart, quote, schedule, accounts, logs] = await Promise.all([
+    const [photos, stages, payments, contract, reviews, events, counterpart, quote, schedule, accounts, logs, order] = await Promise.all([
       supabase.from('service_photos').select('*').eq('service_id', id).order('created_at'),
       supabase.from('service_stages').select('*').eq('service_id', id).order('position'),
       supabase.from('payments').select('*').eq('service_id', id).order('created_at', { ascending: false }),
@@ -62,6 +62,9 @@ export default function ServiceDetailScreen() {
       hasWork
         ? supabase.from('work_logs').select('*, work_log_photos(*)').eq('service_id', id).order('work_date')
         : Promise.resolve({ data: [] as ServiceDetail['logs'] }),
+      isClient
+        ? Promise.resolve({ data: null })
+        : supabase.from('service_orders').select('*').eq('service_id', id).maybeSingle(),
     ]);
     const [signatures, holidays] = await Promise.all([
       contract.data
@@ -80,6 +83,7 @@ export default function ServiceDetailScreen() {
       stages: stages.data ?? [],
       payments: payments.data ?? [],
       contract: contract.data ?? null,
+      order: order.data ?? null,
       signatures: signatures.data ?? [],
       reviews: reviews.data ?? [],
       events: events.data ?? [],

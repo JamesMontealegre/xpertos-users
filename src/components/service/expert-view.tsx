@@ -5,6 +5,7 @@ import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { PayoutFrequencySection } from '@/components/service/payout-frequency';
 import { ServicePhotos } from '@/components/service/photos';
+import { ServiceOrderSection } from '@/components/service/service-order';
 import { LifecycleProgress } from '@/components/service/progress';
 import { QuoteSummary } from '@/components/service/quote-summary';
 import { ReviewSection } from '@/components/service/review';
@@ -21,10 +22,10 @@ import { Text } from '@/components/ui/text';
 import { colors, radius, spacing } from '@/constants/theme';
 import type { Enums } from '@/lib/database.types';
 import { formatCOP, formatDate, formatDateTime, formatPlainDate, todayCO } from '@/lib/format';
-import { payoutFrequencyLabel, pricingModeLabel, quoteStatus, serviceStatus, serviceStatusHelp } from '@/lib/labels';
+import { payoutFrequencyLabel, pricingModeLabel, quoteStatus, serviceOrderStatus, serviceStatus, serviceStatusHelp } from '@/lib/labels';
 import { APPROVED_STATUSES, parseSlots, WORK_STATUSES, type ServiceDetail } from '@/lib/service-detail';
 
-type SectionKey = 'quote' | 'payout' | 'work' | 'close' | 'review' | 'client' | 'request' | 'history';
+type SectionKey = 'order' | 'quote' | 'payout' | 'work' | 'close' | 'review' | 'client' | 'request' | 'history';
 
 /**
  * Orden de las secciones según lo que más le sirve al experto en cada estado: primero lo que tiene que hacer
@@ -33,12 +34,12 @@ type SectionKey = 'quote' | 'payout' | 'work' | 'close' | 'review' | 'client' | 
 const ORDER: Partial<Record<Enums<'service_status'>, SectionKey[]>> = {
   assigned: ['quote', 'client', 'request', 'history'],
   quoting: ['quote', 'client', 'request', 'history'],
-  pending_payment: ['payout', 'quote', 'client', 'request', 'history'],
-  scheduled: ['payout', 'quote', 'client', 'request', 'history'],
-  in_progress: ['work', 'close', 'quote', 'client', 'request', 'payout', 'history'],
-  paused: ['work', 'quote', 'client', 'request', 'payout', 'history'],
-  under_review: ['work', 'quote', 'client', 'request', 'payout', 'history'],
-  completed: ['review', 'work', 'quote', 'payout', 'client', 'request', 'history'],
+  pending_payment: ['order', 'payout', 'quote', 'client', 'request', 'history'],
+  scheduled: ['order', 'payout', 'quote', 'client', 'request', 'history'],
+  in_progress: ['work', 'close', 'order', 'quote', 'client', 'request', 'payout', 'history'],
+  paused: ['work', 'order', 'quote', 'client', 'request', 'payout', 'history'],
+  under_review: ['work', 'order', 'quote', 'client', 'request', 'payout', 'history'],
+  completed: ['review', 'work', 'order', 'quote', 'payout', 'client', 'request', 'history'],
 };
 const DEFAULT_ORDER: SectionKey[] = ['quote', 'client', 'request', 'history'];
 
@@ -92,7 +93,12 @@ export function ExpertServiceView({ detail, userId, onChanged }: Props) {
   const openQuote = () => router.push({ pathname: '/service/[id]/quote', params: { id: service.id } });
   const quoteAction = !quote ? 'Armar cotización' : quote.status === 'returned' ? 'Corregir cotización' : 'Continuar cotización';
 
+  // Orden de servicio: el experto la acepta antes de registrar jornadas.
+  const serviceOrder = detail.order;
+  const orderPending = isExpert && serviceOrder?.status === 'pending';
+
   const available: Record<SectionKey, boolean> = {
+    order: Boolean(serviceOrder) && serviceOrder?.status !== 'void',
     quote: service.status !== 'requested' && service.status !== 'cancelled' ? true : Boolean(quote),
     payout: approved,
     work: hasWork,
@@ -131,6 +137,18 @@ export function ExpertServiceView({ detail, userId, onChanged }: Props) {
   ];
 
   const sections: Record<SectionKey, SectionSpec> = {
+    order: {
+      title: 'Orden de servicio',
+      subtitle: serviceOrder ? `Lo que te encarga Xpertos · versión ${serviceOrder.version}` : null,
+      icon: 'document-text-outline',
+      right: serviceOrder ? (
+        <Badge
+          label={serviceOrderStatus[serviceOrder.status]?.label ?? serviceOrder.status}
+          tone={serviceOrderStatus[serviceOrder.status]?.tone ?? 'slate'}
+        />
+      ) : null,
+      body: serviceOrder ? <ServiceOrderSection order={serviceOrder} canAccept={isExpert} onChanged={onChanged} embedded /> : null,
+    },
     quote: {
       title: 'Tu cotización',
       subtitle: quote ? [quoteLabel?.label, labor > 0 ? formatCOP(labor) : null].filter(Boolean).join(' · ') : 'Por armar',
@@ -271,6 +289,18 @@ export function ExpertServiceView({ detail, userId, onChanged }: Props) {
   };
 
   // "Qué sigue" según el estado; si no hay pasos, el texto de ayuda del estado.
+  const orderStep = orderPending ? (
+    <Step
+      state="todo"
+      title="Acepta la orden de servicio"
+      detail={
+        serviceOrder && serviceOrder.version > 1
+          ? 'Se actualizó (p. ej. con la fecha de inicio): revísala y acéptala de nuevo. Sin aceptarla no puedes registrar jornadas.'
+          : 'El trabajo, lo que recibes y tus obligaciones. Sin aceptarla no puedes registrar jornadas.'
+      }
+      action={{ label: 'Revisar y aceptar', onPress: () => reveal('order') }}
+    />
+  ) : null;
   const payoutStep =
     payoutEditable ? (
       <Step
@@ -327,14 +357,21 @@ export function ExpertServiceView({ detail, userId, onChanged }: Props) {
           title="Esperando el pago del cliente"
           detail={proofInReview ? 'El cliente subió el comprobante: Xpertos lo está verificando.' : 'Te avisaremos cuando Xpertos lo verifique.'}
         />
+        {orderStep}
         {payoutStep}
       </NextSteps>
     );
-  } else if (service.status === 'scheduled' && payoutStep && !payoutChosen) {
-    steps = <NextSteps>{payoutStep}</NextSteps>;
+  } else if (service.status === 'scheduled' && (orderStep || (payoutStep && !payoutChosen))) {
+    steps = (
+      <NextSteps>
+        {orderStep}
+        {payoutChosen ? null : payoutStep}
+      </NextSteps>
+    );
   } else if (isExpert && service.status === 'in_progress') {
     steps = (
       <NextSteps>
+        {orderStep}
         <Step
           state={todayLog?.check_in ? 'done' : 'todo'}
           title="Registra la jornada de hoy"
