@@ -287,6 +287,8 @@ export const eventLabels: Record<string, string> = {
   contract_signed: 'Contrato firmado',
   service_order_created: 'Orden de servicio generada',
   service_order_accepted: 'Orden de servicio aceptada',
+  start_act_created: 'Acta de inicio generada',
+  start_act_signed: 'Acta de inicio firmada',
   work_closed: 'Trabajo cerrado',
   review_created: 'Calificación registrada',
 };

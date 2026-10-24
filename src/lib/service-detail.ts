@@ -3,6 +3,9 @@ import type { Enums, Tables } from '@/lib/database.types';
 
 export type Slot = { date: string; from: string; to: string };
 
+/** Acta de inicio con sus firmas (la ven el cliente, el experto asignado y el admin). */
+export type StartActDetail = Tables<'start_acts'> & { start_act_signatures: Tables<'start_act_signatures'>[] };
+
 /** Todo lo que carga la pantalla de detalle de un servicio. */
 export type ServiceDetail = {
   service: Tables<'services'> & { service_categories: { name: string } | null };
@@ -13,6 +16,7 @@ export type ServiceDetail = {
   /** Orden de servicio del experto (solo la ven el experto asignado y el admin). */
   order: Tables<'service_orders'> | null;
   signatures: Tables<'contract_signatures'>[];
+  startAct: StartActDetail | null;
   reviews: Tables<'service_reviews'>[];
   events: Tables<'service_events'>[];
   counterpart: Tables<'profiles'> | null;

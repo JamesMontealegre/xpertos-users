@@ -46,7 +46,7 @@ export default function ServiceDetailScreen() {
     const isClient = service.client_id === session.user.id;
     const counterpartId = isClient ? service.expert_id : service.client_id;
     const hasWork = WORK_STATUSES.includes(service.status);
-    const [photos, stages, payments, contract, reviews, events, counterpart, quote, schedule, accounts, logs, order] = await Promise.all([
+    const [photos, stages, payments, contract, reviews, events, counterpart, quote, schedule, accounts, logs, order, startAct] = await Promise.all([
       supabase.from('service_photos').select('*').eq('service_id', id).order('created_at'),
       supabase.from('service_stages').select('*').eq('service_id', id).order('position'),
       supabase.from('payments').select('*').eq('service_id', id).order('created_at', { ascending: false }),
@@ -65,6 +65,7 @@ export default function ServiceDetailScreen() {
       isClient
         ? Promise.resolve({ data: null })
         : supabase.from('service_orders').select('*').eq('service_id', id).maybeSingle(),
+      supabase.from('start_acts').select('*, start_act_signatures(*)').eq('service_id', id).maybeSingle(),
     ]);
     const [signatures, holidays] = await Promise.all([
       contract.data
@@ -85,6 +86,7 @@ export default function ServiceDetailScreen() {
       contract: contract.data ?? null,
       order: order.data ?? null,
       signatures: signatures.data ?? [],
+      startAct: startAct.data ?? null,
       reviews: reviews.data ?? [],
       events: events.data ?? [],
       counterpart: counterpart.data ?? null,

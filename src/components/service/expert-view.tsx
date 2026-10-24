@@ -6,6 +6,7 @@ import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import { PayoutFrequencySection } from '@/components/service/payout-frequency';
 import { ServicePhotos } from '@/components/service/photos';
 import { ServiceOrderSection } from '@/components/service/service-order';
+import { startActOpen, StartActSection, startActSignatures } from '@/components/service/start-act';
 import { LifecycleProgress } from '@/components/service/progress';
 import { QuoteSummary } from '@/components/service/quote-summary';
 import { ReviewSection } from '@/components/service/review';
@@ -25,7 +26,7 @@ import { formatCOP, formatDate, formatDateTime, formatPlainDate, todayCO } from 
 import { payoutFrequencyLabel, pricingModeLabel, quoteStatus, serviceOrderStatus, serviceStatus, serviceStatusHelp } from '@/lib/labels';
 import { APPROVED_STATUSES, parseSlots, WORK_STATUSES, type ServiceDetail } from '@/lib/service-detail';
 
-type SectionKey = 'order' | 'quote' | 'payout' | 'work' | 'close' | 'review' | 'client' | 'request' | 'history';
+type SectionKey = 'order' | 'act' | 'quote' | 'payout' | 'work' | 'close' | 'review' | 'client' | 'request' | 'history';
 
 /**
  * Orden de las secciones según lo que más le sirve al experto en cada estado: primero lo que tiene que hacer
@@ -35,11 +36,11 @@ const ORDER: Partial<Record<Enums<'service_status'>, SectionKey[]>> = {
   assigned: ['quote', 'client', 'request', 'history'],
   quoting: ['quote', 'client', 'request', 'history'],
   pending_payment: ['order', 'payout', 'quote', 'client', 'request', 'history'],
-  scheduled: ['order', 'payout', 'quote', 'client', 'request', 'history'],
-  in_progress: ['work', 'close', 'order', 'quote', 'client', 'request', 'payout', 'history'],
-  paused: ['work', 'order', 'quote', 'client', 'request', 'payout', 'history'],
-  under_review: ['work', 'order', 'quote', 'client', 'request', 'payout', 'history'],
-  completed: ['review', 'work', 'order', 'quote', 'payout', 'client', 'request', 'history'],
+  scheduled: ['order', 'act', 'payout', 'quote', 'client', 'request', 'history'],
+  in_progress: ['work', 'close', 'act', 'order', 'quote', 'client', 'request', 'payout', 'history'],
+  paused: ['work', 'act', 'order', 'quote', 'client', 'request', 'payout', 'history'],
+  under_review: ['work', 'order', 'act', 'quote', 'client', 'request', 'payout', 'history'],
+  completed: ['review', 'work', 'order', 'act', 'quote', 'payout', 'client', 'request', 'history'],
 };
 const DEFAULT_ORDER: SectionKey[] = ['quote', 'client', 'request', 'history'];
 
@@ -109,8 +110,15 @@ export function ExpertServiceView({ detail, userId, onChanged }: Props) {
   const serviceOrder = detail.order;
   const orderPending = isExpert && serviceOrder?.status === 'pending';
 
+  // Acta de inicio: el experto y el cliente la firman el día de inicio, antes de la primera jornada.
+  const act = detail.startAct;
+  const actSigs = act ? startActSignatures(act) : null;
+  const actPending = act?.status === 'pending_signatures';
+  const actToSign = Boolean(isExpert && act && startActOpen(act, service) && !actSigs?.expert);
+
   const available: Record<SectionKey, boolean> = {
     order: Boolean(serviceOrder) && serviceOrder?.status !== 'void',
+    act: Boolean(act) && act?.status !== 'void',
     quote: service.status !== 'requested' && service.status !== 'cancelled' ? true : Boolean(quote),
     payout: approved,
     work: hasWork,
@@ -120,7 +128,9 @@ export function ExpertServiceView({ detail, userId, onChanged }: Props) {
     request: true,
     history: true,
   };
-  const order = (ORDER[service.status] ?? DEFAULT_ORDER).filter((key) => available[key]);
+  const baseOrder = (ORDER[service.status] ?? DEFAULT_ORDER).filter((key) => available[key]);
+  // Si toca firmar el acta, va primero.
+  const order: SectionKey[] = actToSign ? ['act', ...baseOrder.filter((k) => k !== 'act')] : baseOrder;
 
   const facts: [string, string | null][] = [
     ['Tu cotización', quote && labor > 0 ? formatCOP(labor) : null],
@@ -149,6 +159,25 @@ export function ExpertServiceView({ detail, userId, onChanged }: Props) {
   ];
 
   const sections: Record<SectionKey, SectionSpec> = {
+    act: {
+      title: 'Acta de inicio',
+      subtitle:
+        act?.status === 'signed'
+          ? 'Firmada por ti y el cliente'
+          : actSigs?.expert
+            ? 'Falta la firma del cliente'
+            : service.start_date
+              ? `Se firma el ${formatPlainDate(service.start_date)}, en el lugar`
+              : 'Se firma el día de inicio',
+      icon: 'clipboard-outline',
+      right: act ? (
+        <Badge
+          label={act.status === 'signed' ? 'Firmada' : actToSign ? 'Por firmar' : 'Pendiente'}
+          tone={act.status === 'signed' ? 'green' : actToSign ? 'amber' : 'slate'}
+        />
+      ) : null,
+      body: act ? <StartActSection act={act} service={service} userId={userId} onChanged={onChanged} /> : null,
+    },
     order: {
       title: 'Orden de servicio',
       subtitle: serviceOrder ? `Lo que te encarga Xpertos · versión ${serviceOrder.version}` : null,
@@ -384,12 +413,30 @@ export function ExpertServiceView({ detail, userId, onChanged }: Props) {
     steps = (
       <NextSteps>
         {orderStep}
+        {actPending ? (
+          <Step
+            state={actToSign ? 'todo' : 'waiting'}
+            title={actToSign ? 'Firma el acta de inicio con el cliente' : 'Falta la firma del cliente en el acta de inicio'}
+            detail={
+              actToSign
+                ? 'En el lugar y antes de la primera jornada: tú y el cliente la firman a mano alzada, cada uno en su celular.'
+                : 'Pídele al cliente que la firme en su app. Sin el acta firmada por los dos no puedes registrar jornadas.'
+            }
+            action={{ label: actToSign ? 'Leer y firmar' : 'Ver acta', onPress: () => reveal('act') }}
+          />
+        ) : null}
         <Step
           state={todayLog?.check_in ? 'done' : 'todo'}
           title="Registra la jornada de hoy"
-          detail={todayLog?.check_in ? 'Ya registraste la jornada de hoy.' : 'Hora de ingreso, hora de salida y fotos del trabajo.'}
+          detail={
+            todayLog?.check_in
+              ? 'Ya registraste la jornada de hoy.'
+              : actPending
+                ? 'Se habilita cuando el acta de inicio esté firmada por los dos.'
+                : 'Hora de ingreso, hora de salida y fotos del trabajo.'
+          }
           action={
-            !todayLog?.check_in && canLogToday
+            !todayLog?.check_in && canLogToday && !actPending
               ? { label: 'Registrar jornada', onPress: () => router.push({ pathname: '/service/[id]/work/[date]', params: { id: service.id, date: today } }) }
               : null
           }

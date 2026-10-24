@@ -1,6 +1,9 @@
+import { File, Paths } from 'expo-file-system';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
+
+import { supabase } from '@/lib/supabase';
 
 function escapeHtml(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -196,5 +199,62 @@ export async function downloadContract(contract: ContractLike, title = 'Contrato
     });
   } else {
     await Print.printAsync({ uri });
+  }
+}
+
+function base64ToBytes(base64: string): Uint8Array {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+/**
+ * PDF generado en el servidor, con las firmas: el contrato (firma de Xpertos y la manuscrita del cliente) o el
+ * acta de inicio (manuscritas del cliente y del experto). Con sesión se pide por el documento; desde el enlace del
+ * correo, por el token del enlace.
+ * - Web: se descarga el archivo.
+ * - iOS/Android: se guarda en la caché y se abre la hoja de compartir (guardar en Archivos, enviar…).
+ */
+export async function downloadContractPdf(params: { contractId: string } | { startActId: string } | { token: string }): Promise<void> {
+  const { data, error } = await supabase.functions.invoke('contract-pdf', {
+    body:
+      'token' in params
+        ? { token: params.token }
+        : 'startActId' in params
+          ? { start_act_id: params.startActId }
+          : { contract_id: params.contractId },
+  });
+  if (error) {
+    let message = 'No pudimos generar el PDF. Intenta de nuevo.';
+    try {
+      const body = await (error as { context?: Response }).context?.json();
+      if (body?.error) message = String(body.error);
+    } catch {
+      // sin cuerpo legible
+    }
+    throw new Error(message);
+  }
+  const { filename, base64 } = data as { filename: string; base64: string };
+  const bytes = base64ToBytes(base64);
+
+  if (Platform.OS === 'web') {
+    const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'application/pdf' }));
+    const link = window.document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    window.document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    return;
+  }
+  const file = new File(Paths.cache, filename);
+  file.create({ overwrite: true });
+  file.write(bytes);
+  if (await Sharing.isAvailableAsync()) {
+    await Sharing.shareAsync(file.uri, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf', dialogTitle: filename });
+  } else {
+    await Print.printAsync({ uri: file.uri });
   }
 }

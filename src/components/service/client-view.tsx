@@ -9,6 +9,7 @@ import { QuoteOptions } from '@/components/service/quote-options';
 import { QuoteSummary } from '@/components/service/quote-summary';
 import { ReviewSection } from '@/components/service/review';
 import { ScheduleCard } from '@/components/service/schedule';
+import { startActOpen, StartActSection, startActSignatures } from '@/components/service/start-act';
 import { StagesSection } from '@/components/service/stages';
 import { Timeline } from '@/components/service/timeline';
 import { daysLabel, Facts, NextSteps, SectionList, Step, useSections, type SectionSpec } from '@/components/service/sections';
@@ -25,7 +26,7 @@ import { formatCOP, formatDate, formatDateTime, formatPlainDate, todayCO } from 
 import { contractStatus, installmentFrequencyLabel, pricingModeLabel, serviceStatus, serviceStatusHelp, type Tone } from '@/lib/labels';
 import { APPROVED_STATUSES, nextUnpaidStage, parseSlots, WORK_STATUSES, type ServiceDetail } from '@/lib/service-detail';
 
-type SectionKey = 'payment' | 'contract' | 'quote' | 'work' | 'review' | 'expert' | 'request' | 'history';
+type SectionKey = 'payment' | 'contract' | 'act' | 'quote' | 'work' | 'review' | 'expert' | 'request' | 'history';
 
 /**
  * Orden de las secciones según lo que más le sirve al cliente en cada estado: primero lo que tiene que hacer
@@ -33,11 +34,11 @@ type SectionKey = 'payment' | 'contract' | 'quote' | 'work' | 'review' | 'expert
  */
 const ORDER: Partial<Record<Enums<'service_status'>, SectionKey[]>> = {
   pending_payment: ['payment', 'contract', 'quote', 'expert', 'request', 'history'],
-  scheduled: ['contract', 'quote', 'payment', 'expert', 'request', 'history'],
-  in_progress: ['work', 'quote', 'contract', 'payment', 'expert', 'request', 'history'],
-  paused: ['work', 'quote', 'contract', 'payment', 'expert', 'request', 'history'],
-  under_review: ['work', 'quote', 'contract', 'payment', 'expert', 'request', 'history'],
-  completed: ['review', 'work', 'quote', 'contract', 'payment', 'expert', 'request', 'history'],
+  scheduled: ['contract', 'act', 'quote', 'payment', 'expert', 'request', 'history'],
+  in_progress: ['work', 'act', 'quote', 'contract', 'payment', 'expert', 'request', 'history'],
+  paused: ['work', 'act', 'quote', 'contract', 'payment', 'expert', 'request', 'history'],
+  under_review: ['work', 'quote', 'contract', 'act', 'payment', 'expert', 'request', 'history'],
+  completed: ['review', 'work', 'quote', 'contract', 'act', 'payment', 'expert', 'request', 'history'],
 };
 const DEFAULT_ORDER: SectionKey[] = ['quote', 'expert', 'request', 'history'];
 
@@ -110,9 +111,15 @@ export function ClientServiceView({ detail, userId, onChanged, onCancelRequest, 
   const startAct = Boolean(contract?.body_md.includes('acta de inicio'));
   const reviewed = detail.reviews.some((r) => r.author_id === userId);
 
+  // Acta de inicio: la firman el cliente y el experto el día de inicio, antes de la primera jornada.
+  const act = detail.startAct;
+  const actSigs = act ? startActSignatures(act) : null;
+  const actToSign = Boolean(act && startActOpen(act, service) && !actSigs?.client);
+
   const available: Record<SectionKey, boolean> = {
     payment: approved && detail.stages.length > 0,
     contract: Boolean(contract),
+    act: Boolean(act) && act?.status !== 'void',
     quote: Boolean(quote) && (quoteReady || approved),
     work: hasWork,
     review: service.status === 'completed',
@@ -120,7 +127,9 @@ export function ClientServiceView({ detail, userId, onChanged, onCancelRequest, 
     request: true,
     history: true,
   };
-  const order = (ORDER[service.status] ?? DEFAULT_ORDER).filter((key) => available[key]);
+  const baseOrder = (ORDER[service.status] ?? DEFAULT_ORDER).filter((key) => available[key]);
+  // Si toca firmar el acta, va primero.
+  const order: SectionKey[] = actToSign ? ['act', ...baseOrder.filter((k) => k !== 'act')] : baseOrder;
 
   const offset = schedule?.start_offset_days ?? 2;
   const facts: [string, string | null][] = [
@@ -175,6 +184,25 @@ export function ClientServiceView({ detail, userId, onChanged, onCancelRequest, 
       body: contract ? (
         <ContractSection contract={contract} signatures={detail.signatures} service={service} userId={userId} onChanged={onChanged} embedded />
       ) : null,
+    },
+    act: {
+      title: 'Acta de inicio',
+      subtitle:
+        act?.status === 'signed'
+          ? 'Firmada por ti y el experto'
+          : actSigs?.client
+            ? 'Falta la firma del experto'
+            : service.start_date
+              ? `Se firma el ${formatPlainDate(service.start_date)}`
+              : 'Se firma el día de inicio',
+      icon: 'clipboard-outline',
+      right: act ? (
+        <Badge
+          label={act.status === 'signed' ? 'Firmada' : actToSign ? 'Por firmar' : 'Pendiente'}
+          tone={act.status === 'signed' ? 'green' : actToSign ? 'amber' : 'slate'}
+        />
+      ) : null,
+      body: act ? <StartActSection act={act} service={service} userId={userId} onChanged={onChanged} /> : null,
     },
     quote: quoteReady
       ? {
@@ -330,6 +358,16 @@ export function ClientServiceView({ detail, userId, onChanged, onCancelRequest, 
         ) : null}
 
         {service.status === 'scheduled' ? <ScheduleCard service={service} schedule={schedule} /> : null}
+        {actToSign ? (
+          <NextSteps title="Qué sigue">
+            <Step
+              state="todo"
+              title="Firma el acta de inicio con el experto"
+              detail="Antes de la primera jornada: tú y el experto la firman a mano alzada, cada uno en su celular."
+              action={{ label: 'Leer y firmar', onPress: () => reveal('act') }}
+            />
+          </NextSteps>
+        ) : null}
         {openInstallment && hasWork ? (
           <NextSteps title="Qué sigue">
             <Step
