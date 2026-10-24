@@ -269,8 +269,7 @@ export function StagesSection({ service, stages, payments, accounts, isClient, u
                   <>
                     <Button title={`Pagar en línea ${formatCOP(onlineTotal)}`} onPress={payOnline} loading={paying} />
                     <Text style={styles.payHint}>
-                      Tarjeta, PSE, Nequi y otros medios con Wompi. El pago en línea incluye el costo de la transacción; por transferencia
-                      no hay costo adicional.
+                      Tarjeta, PSE, Nequi y otros medios con Wompi.
                       {nextRemaining > online.max_payment
                         ? ` Cada pago en línea abona máximo ${formatCOP(online.max_payment)} (uno por día); el resto lo pagas otro día o por transferencia.`
                         : ' Un pago en línea por día.'}
