@@ -65,7 +65,7 @@ export default function PaymentResultScreen() {
             icon: 'checkmark-circle' as const,
             tone: colors.success,
             title: 'Pago aprobado',
-            text: `Recibimos ${formatCOP(attempt.amount)}. Ya quedó aplicado a tu plan de pagos y te enviamos la confirmación por correo.`,
+            text: `Abonamos ${formatCOP(attempt.amount)} a tu plan de pagos y te enviamos la confirmación por correo.`,
           }
         : attempt.status === 'pending'
           ? {
@@ -74,7 +74,7 @@ export default function PaymentResultScreen() {
               title: timedOut ? 'Tu pago sigue en proceso' : 'Confirmando tu pago…',
               text: timedOut
                 ? 'El banco aún no confirma el pago. Te avisamos apenas quede aprobado; no hace falta pagar de nuevo.'
-                : `Estamos esperando la confirmación de ${formatCOP(attempt.amount)}. Puede tardar unos segundos.`,
+                : 'Estamos esperando la confirmación del banco. Puede tardar unos segundos.',
             }
           : {
               icon: 'close-circle' as const,

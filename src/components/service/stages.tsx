@@ -44,6 +44,14 @@ type PlanOptions = {
   previews: Record<string, PlanRow[]>;
 };
 type PlanKey = 'single' | 'auto' | Enums<'installment_frequency'>;
+type OnlineConfig = { enabled: boolean; max_payment: number; fee?: { pct: number; fixed: number; vat: number } };
+
+/** Lo que se cobra en línea por un pago: el valor más el costo de la transacción (misma fórmula que `online_charge`). */
+function onlineCharge(amount: number, fee: OnlineConfig['fee']): number {
+  if (!fee) return amount;
+  const k = 1 + fee.vat / 100;
+  return Math.ceil((amount + fee.fixed * k) / (1 - (fee.pct / 100) * k));
+}
 
 const PLAN_LABEL: Record<PlanKey, string> = {
   single: 'Pago único',
@@ -82,7 +90,7 @@ async function invokeErrorMessage(error: unknown, fallback: string): Promise<str
 export function StagesSection({ service, stages, payments, accounts, isClient, userId, onChanged, embedded }: Props) {
   const [error, setError, errorSeq] = useErrorState();
   const { confirm, toast } = useFeedback();
-  const [online, setOnline] = useState<{ enabled: boolean; max_payment: number } | null>(null);
+  const [online, setOnline] = useState<OnlineConfig | null>(null);
   const [paying, setPaying] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [transferAmount, setTransferAmount] = useState<'next' | 'advance' | 'all'>('next');
@@ -91,7 +99,7 @@ export function StagesSection({ service, stages, payments, accounts, isClient, u
     if (!isClient) return;
     let active = true;
     supabase.functions.invoke('wompi-checkout', { body: { action: 'config' } }).then(({ data }) => {
-      if (active && data) setOnline(data as { enabled: boolean; max_payment: number });
+      if (active && data) setOnline(data as OnlineConfig);
     });
     return () => {
       active = false;
@@ -112,6 +120,7 @@ export function StagesSection({ service, stages, payments, accounts, isClient, u
   const inReview = payments.some((p) => p.status === 'submitted');
   const today = todayCO();
   const onlineAmount = online ? Math.min(nextRemaining, online.max_payment) : nextRemaining;
+  const onlineTotal = onlineCharge(onlineAmount, online?.fee);
   // Wompi como agregador permite un pago en línea por cliente al día; la función lo valida de nuevo.
   const paidOnlineToday = payments.some(
     (p) => p.method === 'wompi' && p.status === 'verified' && new Date(p.created_at).toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }) === today
@@ -125,7 +134,7 @@ export function StagesSection({ service, stages, payments, accounts, isClient, u
     setError(null);
     const ok = await confirm({
       title: 'Pagar en línea',
-      message: `Te llevamos a Wompi para pagar ${formatCOP(onlineAmount)} con tarjeta, PSE, Nequi u otros medios. Al terminar vuelves a la app.`,
+      message: `Te llevamos a Wompi para pagar ${formatCOP(onlineTotal)} con tarjeta, PSE, Nequi u otros medios. Al terminar vuelves a la app.`,
       confirmLabel: 'Ir a pagar',
     });
     if (!ok) return;
@@ -258,11 +267,12 @@ export function StagesSection({ service, stages, payments, accounts, isClient, u
                   <InfoBanner message="Ya hiciste tu pago en línea de hoy. Mañana puedes pagar el siguiente en línea, o hoy mismo por transferencia." />
                 ) : online?.enabled ? (
                   <>
-                    <Button title={`Pagar en línea ${formatCOP(onlineAmount)}`} onPress={payOnline} loading={paying} />
+                    <Button title={`Pagar en línea ${formatCOP(onlineTotal)}`} onPress={payOnline} loading={paying} />
                     <Text style={styles.payHint}>
-                      Tarjeta, PSE, Nequi y otros medios con Wompi.
+                      Tarjeta, PSE, Nequi y otros medios con Wompi. El pago en línea incluye el costo de la transacción; por transferencia
+                      no hay costo adicional.
                       {nextRemaining > online.max_payment
-                        ? ` Cada pago en línea es de máximo ${formatCOP(online.max_payment)} (uno por día); el resto lo pagas otro día o por transferencia.`
+                        ? ` Cada pago en línea abona máximo ${formatCOP(online.max_payment)} (uno por día); el resto lo pagas otro día o por transferencia.`
                         : ' Un pago en línea por día.'}
                     </Text>
                   </>
@@ -437,8 +447,7 @@ function PlanChooser({ serviceId, onChanged }: { serviceId: string; onChanged: (
     <View style={styles.planBox}>
       <Text style={styles.payTitle}>¿Cómo quieres pagar?</Text>
       <Text style={styles.payHint}>
-        Puedes cambiarlo hasta hacer el primer pago. Sin recargo. Ningún pago supera {formatCOP(options.max_payment)}, el tope de los pagos en
-        línea.
+        Puedes cambiarlo hasta hacer el primer pago. Sin intereses. Cada pago se puede hacer en línea en una sola transacción.
       </Text>
       <ErrorBanner seq={errorSeq} message={error} />
       <View style={styles.choices} accessibilityRole="radiogroup">
