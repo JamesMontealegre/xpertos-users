@@ -1,3 +1,4 @@
+import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 
 import { supabase } from './supabase';
@@ -45,4 +46,18 @@ export async function uploadServicePhoto(folder: string, file: LocalFile, index 
 /** Borra un archivo de service-photos (si falla, el registro ya no lo referencia: no es crítico). */
 export async function removeServicePhoto(path: string): Promise<void> {
   await supabase.storage.from('service-photos').remove([path]);
+}
+
+// Lado mayor con el que la IA lee mejor sin pagar por píxeles de más.
+const AI_MAX_SIDE = 1568;
+
+/** Copia liviana de una foto para la IA: JPEG con el lado mayor en 1568 px como máximo. */
+export async function resizeForAi(file: LocalFile): Promise<LocalFile> {
+  const original = await ImageManipulator.manipulate(file.uri).renderAsync();
+  const context = ImageManipulator.manipulate(file.uri);
+  if (Math.max(original.width, original.height) > AI_MAX_SIDE) {
+    context.resize(original.width >= original.height ? { width: AI_MAX_SIDE, height: null } : { width: null, height: AI_MAX_SIDE });
+  }
+  const saved = await (await context.renderAsync()).saveAsync({ format: SaveFormat.JPEG, compress: 0.82 });
+  return { uri: saved.uri, mimeType: 'image/jpeg', name: `ia-${timestamp()}.jpg` };
 }

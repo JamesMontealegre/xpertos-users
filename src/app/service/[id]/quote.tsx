@@ -3,9 +3,11 @@ import { Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
+import { AiQuoteSheet, type AiActivity, type AiMaterial } from '@/components/service/ai-quote-sheet';
 import { PhotoGrid } from '@/components/service/photo-grid';
 import { QuoteSummary } from '@/components/service/quote-summary';
 import { BackFallback } from '@/components/back-fallback';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, SectionTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -39,8 +41,20 @@ type ItemDraft = {
   quantity: string;
   unit: string;
   unitPrice: string;
+  /** Vino de la propuesta de la IA; `review` si la IA pidió revisarla. */
+  fromAi?: boolean;
+  review?: string | null;
 };
-type MaterialDraft = { key: string; name: string; quantity: string; unit: string; estimatedCost: string; notes: string };
+type MaterialDraft = {
+  key: string;
+  name: string;
+  quantity: string;
+  unit: string;
+  estimatedCost: string;
+  notes: string;
+  fromAi?: boolean;
+  review?: string | null;
+};
 
 type Loaded = {
   service: Tables<'services'>;
@@ -85,6 +99,31 @@ function formatMeasurement(item: ItemDraft): string | null {
 }
 const emptyMaterial = (): MaterialDraft => ({ key: newKey(), name: '', quantity: '1', unit: 'und', estimatedCost: '', notes: '' });
 
+/** Línea propuesta por la IA → borrador de la cotización (marcado como IA). */
+const itemFromAi = (a: AiActivity): ItemDraft => ({
+  key: newKey(),
+  description: a.description,
+  measureA: a.measure_a ? quantityToInput(a.measure_a) : '',
+  measureB: a.measure_b ? quantityToInput(a.measure_b) : '',
+  measureUnit: a.measure_unit ?? 'm',
+  legacyMeasurement: '',
+  quantity: quantityToInput(a.quantity),
+  unit: a.unit,
+  unitPrice: a.unit_price ? String(Math.round(a.unit_price)) : '',
+  fromAi: true,
+  review: a.needs_review ? (a.note ?? 'Revisa esta línea.') : null,
+});
+const materialFromAi = (m: AiMaterial): MaterialDraft => ({
+  key: newKey(),
+  name: m.name,
+  quantity: quantityToInput(m.quantity),
+  unit: m.unit,
+  estimatedCost: m.estimated_cost ? String(Math.round(m.estimated_cost)) : '',
+  notes: '',
+  fromAi: true,
+  review: m.needs_review ? (m.note ?? 'Revisa esta línea.') : null,
+});
+
 const isBlankItem = (i: ItemDraft) => !i.description.trim() && !i.measureA.trim() && !i.measureB.trim() && !i.unitPrice.trim();
 const isBlankMaterial = (m: MaterialDraft) => !m.name.trim() && !m.notes.trim() && !m.estimatedCost.trim();
 
@@ -110,6 +149,7 @@ export default function QuoteScreen() {
   const { confirm, toast } = useFeedback();
   const [saving, setSaving] = useState<'draft' | 'submit' | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!session || !id) return;
@@ -143,6 +183,7 @@ export default function QuoteScreen() {
               quantity: quantityToInput(i.quantity),
               unit: i.unit,
               unitPrice: String(Math.round(Number(i.unit_price))),
+              fromAi: i.from_ai,
             }))
           : [emptyItem()]
       );
@@ -154,6 +195,7 @@ export default function QuoteScreen() {
           unit: m.unit,
           estimatedCost: m.estimated_cost != null ? String(Math.round(Number(m.estimated_cost))) : '',
           notes: m.notes ?? '',
+          fromAi: m.from_ai,
         }))
       );
     }
@@ -254,6 +296,16 @@ export default function QuoteScreen() {
     );
   }
 
+  // ---------- IA: agrega lo confirmado a lo que ya hay (sin reemplazarlo) ----------
+  const applyAi = (picked: { activities: AiActivity[]; materials: AiMaterial[]; estimatedDays: number | null }) => {
+    setAiOpen(false);
+    if (picked.activities.length) setItems((prev) => [...prev.filter((i) => !isBlankItem(i)), ...picked.activities.map(itemFromAi)]);
+    if (picked.materials.length) setMaterials((prev) => [...prev.filter((m) => !isBlankMaterial(m)), ...picked.materials.map(materialFromAi)]);
+    if (picked.estimatedDays && !estimatedDays.trim()) setEstimatedDays(String(picked.estimatedDays));
+    const total = picked.activities.length + picked.materials.length;
+    toast(`Agregamos ${total} ${total === 1 ? 'línea' : 'líneas'} de la IA. Revísalas y guarda la cotización.`, 'success');
+  };
+
   // ---------- Edición ----------
   const updateItem = (key: string, patch: Partial<ItemDraft>) =>
     setItems((prev) => prev.map((i) => (i.key === key ? { ...i, ...patch } : i)));
@@ -262,7 +314,7 @@ export default function QuoteScreen() {
 
   /** Valida y guarda el borrador (upsert de la cotización + reemplazo de actividades y materiales). */
   const persist = async (): Promise<void> => {
-    const itemRows: { description: string; measurement: string | null; quantity: number; unit: string; unit_price: number }[] = [];
+    const itemRows: { description: string; measurement: string | null; quantity: number; unit: string; unit_price: number; from_ai: boolean }[] = [];
     for (const [idx, item] of items.entries()) {
       if (isBlankItem(item)) continue;
       const n = idx + 1;
@@ -276,9 +328,10 @@ export default function QuoteScreen() {
         quantity,
         unit: item.unit,
         unit_price: price,
+        from_ai: Boolean(item.fromAi),
       });
     }
-    const materialRows: { name: string; quantity: number; unit: string; estimated_cost: number | null; notes: string | null }[] = [];
+    const materialRows: { name: string; quantity: number; unit: string; estimated_cost: number | null; notes: string | null; from_ai: boolean }[] = [];
     for (const [idx, m] of materials.entries()) {
       if (isBlankMaterial(m)) continue;
       const n = idx + 1;
@@ -291,6 +344,7 @@ export default function QuoteScreen() {
         unit: m.unit,
         estimated_cost: m.estimatedCost.trim() ? parseMoney(m.estimatedCost) : null,
         notes: m.notes.trim() || null,
+        from_ai: Boolean(m.fromAi),
       });
     }
     let days: number | null = null;
@@ -454,11 +508,24 @@ export default function QuoteScreen() {
         />
       </Card>
 
+      <Pressable accessibilityRole="button" onPress={() => setAiOpen(true)} style={styles.aiCard}>
+        <Ionicons name="sparkles" size={24} color={colors.primary} />
+        <View style={styles.aiBody}>
+          <Text style={styles.aiTitle}>Armar con IA desde fotos</Text>
+          <Text style={styles.aiText}>Tómale foto a tu cotización escrita o al lugar del trabajo y la IA te propone actividades y materiales.</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color={colors.primary} />
+      </Pressable>
+      <AiQuoteSheet visible={aiOpen} serviceId={service.id} userId={userId} onClose={() => setAiOpen(false)} onApply={applyAi} />
+
       <SectionTitle right={<Text style={styles.sectionTotal}>{formatCOP(laborTotal)}</Text>}>Actividades</SectionTitle>
       {items.map((item, idx) => (
         <Card key={item.key} style={styles.card}>
           <View style={styles.rowHeader}>
-            <Text style={styles.rowTitle}>Actividad {idx + 1}</Text>
+            <View style={styles.rowTitleWrap}>
+              <Text style={styles.rowTitle}>Actividad {idx + 1}</Text>
+              {item.fromAi ? <Badge label={item.review ? 'IA · revisar' : 'IA'} tone={item.review ? 'amber' : 'blue'} /> : null}
+            </View>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`Eliminar actividad ${idx + 1}`}
@@ -473,6 +540,7 @@ export default function QuoteScreen() {
             onChangeText={(description) => updateItem(item.key, { description })}
             placeholder="Ej. Cambio de sifón del lavaplatos"
           />
+          {item.review ? <Text style={styles.aiReview}>{item.review}</Text> : null}
           <Text style={styles.fieldLabel}>Medidas (opcional)</Text>
           <View style={styles.measureRow}>
             <Input
@@ -557,7 +625,10 @@ export default function QuoteScreen() {
       {materials.map((m, idx) => (
         <Card key={m.key} style={styles.card}>
           <View style={styles.rowHeader}>
-            <Text style={styles.rowTitle}>Material {idx + 1}</Text>
+            <View style={styles.rowTitleWrap}>
+              <Text style={styles.rowTitle}>Material {idx + 1}</Text>
+              {m.fromAi ? <Badge label={m.review ? 'IA · revisar' : 'IA'} tone={m.review ? 'amber' : 'blue'} /> : null}
+            </View>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`Eliminar material ${idx + 1}`}
@@ -567,6 +638,7 @@ export default function QuoteScreen() {
             </Pressable>
           </View>
           <Input label="Nombre" value={m.name} onChangeText={(name) => updateMaterial(m.key, { name })} placeholder='Ej. Sifón PVC 1 1/2"' />
+          {m.review ? <Text style={styles.aiReview}>{m.review}</Text> : null}
           <View style={styles.inline}>
             <Input
               label="Cantidad"
@@ -672,6 +744,21 @@ const styles = StyleSheet.create({
   returnedNotes: { fontSize: 14, color: colors.text, lineHeight: 20 },
   sectionTotal: { color: colors.primary, fontWeight: '800', fontSize: 15 },
   rowHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  rowTitleWrap: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  aiCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    backgroundColor: colors.primarySoft,
+  },
+  aiBody: { flex: 1, gap: 2 },
+  aiTitle: { fontSize: 15, fontWeight: '800', color: colors.primary },
+  aiText: { fontSize: 13, lineHeight: 18, color: colors.text },
+  aiReview: { fontSize: 12, lineHeight: 17, color: colors.warning },
   rowTitle: { fontSize: 13, fontWeight: '800', color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.4 },
   inline: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' },
   measureRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, flexWrap: 'wrap' },
