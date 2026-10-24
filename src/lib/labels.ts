@@ -111,6 +111,13 @@ export const pricingModes: { value: Enums<'pricing_mode'>; label: string; short:
   },
 ];
 
+/** Frecuencia de las cuotas, en plural: "Anticipo y 6 cuotas semanales". */
+export const installmentFrequencyLabel: Record<Enums<'installment_frequency'>, string> = {
+  weekly: 'semanales',
+  biweekly: 'quincenales',
+  monthly: 'mensuales',
+};
+
 export function pricingModeLabel(mode: Enums<'pricing_mode'> | null | undefined): string {
   return pricingModes.find((m) => m.value === mode)?.label ?? 'Solo mano de obra';
 }

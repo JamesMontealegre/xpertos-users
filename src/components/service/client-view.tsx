@@ -21,9 +21,9 @@ import { InfoBanner } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
 import { colors, radius, spacing } from '@/constants/theme';
 import type { Enums } from '@/lib/database.types';
-import { formatCOP, formatDate, formatDateTime, formatPlainDate } from '@/lib/format';
-import { contractStatus, pricingModeLabel, serviceStatus, serviceStatusHelp, type Tone } from '@/lib/labels';
-import { APPROVED_STATUSES, parseSlots, WORK_STATUSES, type ServiceDetail } from '@/lib/service-detail';
+import { formatCOP, formatDate, formatDateTime, formatPlainDate, todayCO } from '@/lib/format';
+import { contractStatus, installmentFrequencyLabel, pricingModeLabel, serviceStatus, serviceStatusHelp, type Tone } from '@/lib/labels';
+import { APPROVED_STATUSES, nextUnpaidStage, parseSlots, WORK_STATUSES, type ServiceDetail } from '@/lib/service-detail';
 
 type SectionKey = 'payment' | 'contract' | 'quote' | 'work' | 'review' | 'expert' | 'request' | 'history';
 
@@ -69,17 +69,40 @@ export function ClientServiceView({ detail, userId, onChanged, onCancelRequest, 
   const slots = parseSlots(service.availability);
   const expertName = counterpart?.full_name || 'tu experto';
 
-  // Pago: por pagar, en verificación, rechazado o pagado.
+  // Pago: lo pagado (verificado) se aplica en orden a los pagos del plan; el próximo es el primero sin cubrir.
   const proofInReview = detail.payments.some((p) => p.status === 'submitted');
-  const paid = detail.stages.length > 0 && detail.stages.every((s) => s.status === 'paid');
-  const proofRejected = !paid && !proofInReview && detail.stages.some((s) => s.status === 'rejected');
+  const paidAmount = detail.payments.filter((p) => p.status === 'verified').reduce((sum, p) => sum + Number(p.amount), 0);
+  const paid = detail.stages.length > 0 && paidAmount >= stagesTotal;
+  const advanceStages = detail.stages.filter((s) => s.kind !== 'installment');
+  const advanceTotal = advanceStages.reduce((sum, s) => sum + Number(s.amount), 0);
+  const installments = detail.stages.filter((s) => s.kind === 'installment');
+  const nextStage = nextUnpaidStage(detail.stages, paidAmount)?.stage ?? null;
+  const today = todayCO();
+  const nextOverdue = Boolean(nextStage && nextStage.status !== 'pending' && nextStage.due_date && nextStage.due_date < today);
+  const proofRejected = !paid && !proofInReview && nextStage?.status === 'rejected';
   const payment: { label: string; tone: Tone } = paid
     ? { label: 'Pagado', tone: 'green' }
     : proofInReview
       ? { label: 'En verificación', tone: 'blue' }
       : proofRejected
         ? { label: 'Rechazado', tone: 'red' }
-        : { label: 'Por pagar', tone: 'amber' };
+        : nextOverdue
+          ? { label: 'Pago vencido', tone: 'red' }
+          : nextStage?.status === 'pending'
+            ? { label: 'Al día', tone: 'green' }
+            : { label: 'Por pagar', tone: 'amber' };
+  // Cuota habilitada durante la obra (o vencida) que el cliente debe pagar ahora.
+  const openInstallment = nextStage?.kind === 'installment' && ['awaiting_payment', 'rejected'].includes(nextStage.status) ? nextStage : null;
+  const planLabel =
+    detail.stages.length === 0
+      ? null
+      : installments.length === 0
+        ? advanceStages.length > 1
+          ? `Pago único en ${advanceStages.length} pagos`
+          : 'Pago único'
+        : `Anticipo y ${installments.length} ${installments.length === 1 ? 'cuota' : 'cuotas'}${
+            service.installment_frequency ? ` ${installmentFrequencyLabel[service.installment_frequency]}` : ''
+          }`;
 
   // Contrato: firmado por el cliente en la versión vigente.
   const signed = Boolean(contract && detail.signatures.some((s) => s.signer_id === userId && s.body_hash === contract.body_hash));
@@ -103,12 +126,13 @@ export function ClientServiceView({ detail, userId, onChanged, onCancelRequest, 
   const facts: [string, string | null][] = [
     ['Valor del servicio', approved && total != null ? formatCOP(total) : null],
     ['Modalidad', service.pricing_mode ? pricingModeLabel(service.pricing_mode) : null],
+    ['Plan de pagos', approved ? planLabel : null],
     ['Experto asignado', counterpart?.full_name ?? null],
     ['Visita acordada', service.scheduled_at && ['assigned', 'quoting'].includes(service.status) ? formatDateTime(service.scheduled_at) : null],
     [
       'Inicio de obra',
       service.status === 'pending_payment'
-        ? `${offset} días hábiles después de verificar tu pago`
+        ? `${offset} días hábiles después de recibir ${installments.length > 0 ? 'el anticipo' : 'tu pago'}`
         : hasWork && schedule?.start_date
           ? formatPlainDate(schedule.start_date)
           : null,
@@ -125,7 +149,7 @@ export function ClientServiceView({ detail, userId, onChanged, onCancelRequest, 
   const sections: Record<SectionKey, SectionSpec> = {
     payment: {
       title: 'Pago del servicio',
-      subtitle: `Total ${formatCOP(stagesTotal)}`,
+      subtitle: paid || paidAmount === 0 ? `Total ${formatCOP(stagesTotal)}` : `Pagado ${formatCOP(paidAmount)} de ${formatCOP(stagesTotal)}`,
       icon: 'card-outline',
       right: <Badge label={payment.label} tone={payment.tone} />,
       body: (
@@ -277,18 +301,22 @@ export function ClientServiceView({ detail, userId, onChanged, onCancelRequest, 
         {service.status === 'pending_payment' ? (
           <NextSteps
             title="Qué sigue"
-            footer={`Cuando Xpertos verifique el pago, el servicio pasa a Programado y la obra inicia ${offset} días hábiles después.`}>
+            footer={`Cuando recibamos ${installments.length > 0 ? 'el anticipo' : 'el pago'}, el servicio pasa a Programado y la obra inicia ${offset} días hábiles después.`}>
             <Step
-              state={paid ? 'done' : proofInReview ? 'waiting' : proofRejected ? 'alert' : 'todo'}
-              title={total != null ? `Paga ${formatCOP(total)} y sube el comprobante` : 'Paga y sube el comprobante'}
+              state={paidAmount >= advanceTotal ? 'done' : proofInReview ? 'waiting' : proofRejected || nextOverdue ? 'alert' : 'todo'}
+              title={installments.length > 0 ? `Paga el anticipo de ${formatCOP(advanceTotal)}` : `Paga ${formatCOP(advanceTotal)}`}
               detail={
                 proofInReview
                   ? 'Recibimos tu comprobante: Xpertos lo está verificando en el banco.'
                   : proofRejected
-                    ? 'Tu último comprobante fue rechazado. Revisa la nota y sube otro.'
-                    : 'Transfiere a una de las cuentas de Xpertos y sube la foto del comprobante.'
+                    ? 'Tu último comprobante fue rechazado. Revisa la nota y paga de nuevo.'
+                    : advanceStages.length > 1
+                      ? `En ${advanceStages.length} pagos, uno por día: en línea con tarjeta, PSE o Nequi, o por transferencia.${
+                          paidAmount > 0 ? ` Llevas ${formatCOP(paidAmount)}.` : ''
+                        }`
+                      : 'En línea con tarjeta, PSE o Nequi, o por transferencia a las cuentas de Xpertos.'
               }
-              action={!paid && !proofInReview ? { label: proofRejected ? 'Subir otro comprobante' : 'Ver cómo pagar', onPress: () => reveal('payment') } : null}
+              action={!paid && !proofInReview ? { label: 'Ver cómo pagar', onPress: () => reveal('payment') } : null}
             />
             {contract ? (
               <Step
@@ -302,6 +330,24 @@ export function ClientServiceView({ detail, userId, onChanged, onCancelRequest, 
         ) : null}
 
         {service.status === 'scheduled' ? <ScheduleCard service={service} schedule={schedule} /> : null}
+        {openInstallment && hasWork ? (
+          <NextSteps title="Qué sigue">
+            <Step
+              state={proofInReview ? 'waiting' : nextOverdue || proofRejected ? 'alert' : 'todo'}
+              title={`Paga la ${openInstallment.name.toLowerCase()}: ${formatCOP(openInstallment.amount)}`}
+              detail={
+                proofInReview
+                  ? 'Recibimos tu comprobante: Xpertos lo está verificando en el banco.'
+                  : openInstallment.due_date
+                    ? `${nextOverdue ? 'Venció' : 'Vence'} el ${formatPlainDate(openInstallment.due_date)}.${
+                        nextOverdue ? ' Si no se paga, Xpertos puede pausar la obra.' : ''
+                      }`
+                    : 'En línea o por transferencia.'
+              }
+              action={proofInReview ? null : { label: 'Pagar', onPress: () => reveal('payment') }}
+            />
+          </NextSteps>
+        ) : null}
         {service.status === 'scheduled' && contractPending ? (
           <NextSteps title="Qué sigue">
             <Step

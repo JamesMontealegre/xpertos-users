@@ -81,7 +81,19 @@ export function ExpertServiceView({ detail, userId, onChanged }: Props) {
   const proofInReview = detail.payments.some((p) => p.status === 'submitted');
   const paid = detail.stages.length > 0 && detail.stages.every((s) => s.status === 'paid');
   const proofRejected = !paid && !proofInReview && detail.stages.some((s) => s.status === 'rejected');
-  const clientPayment = paid ? 'Verificado' : proofInReview ? 'En verificación' : proofRejected ? 'Comprobante rechazado' : 'Pendiente';
+  const installments = detail.stages.filter((s) => s.kind === 'installment');
+  const advancePaid = detail.stages.filter((s) => s.kind !== 'installment').every((s) => s.status === 'paid');
+  const clientPayment = paid
+    ? 'Verificado'
+    : proofInReview
+      ? 'En verificación'
+      : proofRejected
+        ? 'Comprobante rechazado'
+        : installments.length > 0 && advancePaid
+          ? `Anticipo recibido · ${installments.filter((s) => s.status === 'paid').length} de ${installments.length} cuotas`
+          : installments.length > 0
+            ? 'Esperando el anticipo'
+            : 'Pendiente';
   const payoutEditable = isExpert && (service.status === 'pending_payment' || service.status === 'scheduled');
   const payoutChosen = detail.events.some((e) => e.type === 'payout_frequency_set');
 
@@ -351,11 +363,11 @@ export function ExpertServiceView({ detail, userId, onChanged }: Props) {
     );
   } else if (service.status === 'pending_payment') {
     steps = (
-      <NextSteps footer={`La obra inicia ${offset} días hábiles después de que Xpertos verifique el pago del cliente.`}>
+      <NextSteps footer={`La obra inicia ${offset} días hábiles después de que Xpertos reciba el ${installments.length > 0 ? 'anticipo' : 'pago'} del cliente.`}>
         <Step
           state="waiting"
-          title="Esperando el pago del cliente"
-          detail={proofInReview ? 'El cliente subió el comprobante: Xpertos lo está verificando.' : 'Te avisaremos cuando Xpertos lo verifique.'}
+          title={installments.length > 0 ? 'Esperando el anticipo del cliente' : 'Esperando el pago del cliente'}
+          detail={proofInReview ? 'El cliente subió el comprobante: Xpertos lo está verificando.' : 'Te avisaremos cuando Xpertos lo reciba.'}
         />
         {orderStep}
         {payoutStep}

@@ -11,6 +11,10 @@
       "destination": "/firmar/[token]"
     },
     {
+      "source": "/pago/:ref",
+      "destination": "/pago/[ref]"
+    },
+    {
       "source": "/service/:id/work/:date",
       "destination": "/service/[id]/work/[date]"
     },

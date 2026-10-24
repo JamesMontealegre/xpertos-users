@@ -36,3 +36,13 @@ export function parseSlots(value: unknown): Slot[] {
     (v): v is Slot => typeof v === 'object' && v !== null && typeof (v as Slot).date === 'string' && typeof (v as Slot).from === 'string'
   );
 }
+
+/** Primer pago del plan que lo pagado (verificado, aplicado en orden) aún no cubre, y cuánto le falta. */
+export function nextUnpaidStage<T extends { amount: number }>(stages: T[], paidAmount: number): { stage: T; remaining: number } | null {
+  let cumulative = 0;
+  for (const stage of stages) {
+    cumulative += Number(stage.amount);
+    if (cumulative > paidAmount) return { stage, remaining: Math.min(Number(stage.amount), cumulative - paidAmount) };
+  }
+  return null;
+}
