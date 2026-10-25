@@ -25,6 +25,7 @@ import {
   payoutMethods,
 } from '@/lib/labels';
 import { supabase } from '@/lib/supabase';
+import { normalizePhone, phoneError } from '@/lib/validation';
 import { safeFileName, signedUrl, timestamp, uploadFile } from '@/lib/upload';
 import { useAuth } from '@/providers/auth';
 import { useFeedback } from '@/providers/feedback';
@@ -32,27 +33,34 @@ import { useNotifications } from '@/providers/notifications';
 
 type Application = Tables<'expert_applications'>;
 type ApplicationDocument = Tables<'application_documents'>;
+type Place = { code: string; name: string };
 
 type FormState = {
   phone: string;
-  city: string;
-  categoryIds: string[];
-  experienceYears: string;
-  bio: string;
+  departmentCode: string | null;
+  municipalityCode: string | null;
+  occupationCode: string | null;
 };
+
+const TERMS_URL = `${process.env.EXPO_PUBLIC_SITE_URL ?? 'https://xpertos.com.co'}/terminos`;
+
+/** Postulación ya diligenciada (las anteriores al cambio tienen categorías en lugar de ocupación). */
+const hasDetails = (a: Application) => Boolean(a.occupation_code) || a.category_ids.length > 0;
 
 export default function ApplicationScreen() {
   const { session, profile, refreshProfile } = useAuth();
   const [categories, setCategories] = useState<Tables<'service_categories'>[]>([]);
+  const [occupations, setOccupations] = useState<Place[]>([]);
+  const [departments, setDepartments] = useState<Place[]>([]);
+  const [municipalities, setMunicipalities] = useState<Place[]>([]);
   const [application, setApplication] = useState<Application | null | undefined>(undefined);
   const [documents, setDocuments] = useState<ApplicationDocument[]>([]);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<FormState>({
     phone: profile?.phone ?? '',
-    city: profile?.city ?? '',
-    categoryIds: [],
-    experienceYears: '',
-    bio: '',
+    departmentCode: profile?.department_code ?? '76',
+    municipalityCode: profile?.municipality_code ?? null,
+    occupationCode: null,
   });
   const [docKind, setDocKind] = useState<Enums<'document_kind'> | null>(null);
   const [error, setError, errorSeq] = useErrorState();
@@ -72,7 +80,35 @@ export default function ApplicationScreen() {
       .eq('active', true)
       .order('sort_order')
       .then(({ data }) => setCategories(data ?? []));
+    supabase
+      .from('occupations')
+      .select('code, name')
+      .eq('active', true)
+      .order('sort_order')
+      .then(({ data }) => setOccupations(data ?? []));
+    supabase
+      .from('departments')
+      .select('code, name')
+      .order('name')
+      .then(({ data }) => setDepartments(data ?? []));
   }, []);
+
+  // Municipios del departamento elegido (códigos DANE).
+  useEffect(() => {
+    let active = true;
+    if (!form.departmentCode) return;
+    supabase
+      .from('municipalities')
+      .select('code, name')
+      .eq('department_code', form.departmentCode)
+      .order('name')
+      .then(({ data }) => {
+        if (active) setMunicipalities(data ?? []);
+      });
+    return () => {
+      active = false;
+    };
+  }, [form.departmentCode]);
 
   const load = useCallback(async () => {
     if (!session) return;
@@ -94,15 +130,14 @@ export default function ApplicationScreen() {
     setApplication(data);
     if (data) {
       // Postulación creada al registrarse (o desde la landing) sin datos: abrir el formulario directamente.
-      if (data.category_ids.length === 0 && (data.status === 'pending' || data.status === 'needs_info')) setEditing(true);
+      if (!hasDetails(data) && (data.status === 'pending' || data.status === 'needs_info')) setEditing(true);
       setNequiNumber(data.payout_method === 'nequi' ? (data.payout_account ?? '') : '');
-      setForm({
+      setForm((f) => ({
         phone: data.phone ?? '',
-        city: data.city ?? '',
-        categoryIds: data.category_ids,
-        experienceYears: data.experience_years?.toString() ?? '',
-        bio: data.bio ?? '',
-      });
+        departmentCode: data.department_code ?? f.departmentCode,
+        municipalityCode: data.municipality_code ?? (data.department_code ? null : f.municipalityCode),
+        occupationCode: data.occupation_code,
+      }));
       const { data: docs } = await supabase
         .from('application_documents')
         .select('*')
@@ -135,11 +170,11 @@ export default function ApplicationScreen() {
   };
 
   const validate = (): string | null => {
-    if (form.categoryIds.length === 0) return 'Selecciona al menos una categoría.';
-    const years = Number(form.experienceYears);
-    if (form.experienceYears === '' || Number.isNaN(years) || years < 0 || years > 60)
-      return 'Indica tus años de experiencia (entre 0 y 60).';
-    if (form.bio.trim().length < 20) return 'Cuéntanos un poco más sobre tu experiencia (mínimo 20 caracteres).';
+    const phone = phoneError(form.phone);
+    if (phone) return phone;
+    if (!form.departmentCode) return 'Elige tu departamento.';
+    if (!form.municipalityCode || !form.municipalityCode.startsWith(form.departmentCode)) return 'Elige tu municipio.';
+    if (!form.occupationCode) return 'Elige tu ocupación.';
     return null;
   };
 
@@ -157,12 +192,11 @@ export default function ApplicationScreen() {
       if (!ok) return;
     }
     setSaving(true);
+    // La ciudad, el departamento y la categoría los deriva la base de los códigos.
     const payload = {
-      phone: form.phone.trim() || null,
-      city: form.city.trim() || null,
-      category_ids: form.categoryIds,
-      experience_years: Number(form.experienceYears),
-      bio: form.bio.trim(),
+      phone: normalizePhone(form.phone),
+      municipality_code: form.municipalityCode,
+      occupation_code: form.occupationCode,
     };
     const result = application
       ? await supabase.from('expert_applications').update(payload).eq('id', application.id)
@@ -313,7 +347,8 @@ export default function ApplicationScreen() {
 
   if (application === undefined) return <Loading />;
 
-  const categoryOptions = categories.map((c) => ({ value: c.id, label: c.name }));
+  const occupationName = occupations.find((o) => o.code === application?.occupation_code)?.name ?? null;
+  const departmentName = departments.find((d) => d.code === application?.department_code)?.name ?? null;
   const canEdit = !application || application.status === 'pending' || application.status === 'needs_info';
   const daysLeft = daysUntil(application?.expires_at);
   const deadline = application
@@ -366,15 +401,18 @@ export default function ApplicationScreen() {
             {application.admin_notes && application.status !== 'rejected' ? (
               <KeyValue label="Notas del operador" value={application.admin_notes} />
             ) : null}
-            <KeyValue
-              label="Categorías"
-              value={categories
-                .filter((c) => application.category_ids.includes(c.id))
-                .map((c) => c.name)
-                .join(', ')}
-            />
-            <KeyValue label="Experiencia" value={application.experience_years != null ? `${application.experience_years} años` : null} />
-            <KeyValue label="Reseña" value={application.bio} />
+            {application.occupation_code ? (
+              <KeyValue label="Ocupación" value={occupationName} />
+            ) : (
+              <KeyValue
+                label="Categorías"
+                value={categories
+                  .filter((c) => application.category_ids.includes(c.id))
+                  .map((c) => c.name)
+                  .join(', ')}
+              />
+            )}
+            <KeyValue label="Municipio" value={[application.city, departmentName].filter(Boolean).join(', ') || null} />
             <KeyValue label="Enviada" value={formatDateTime(application.created_at)} />
             {application.status === 'approved' ? (
               <Button title="Actualizar mi panel" variant="outline" size="sm" onPress={refreshProfile} />
@@ -506,38 +544,52 @@ export default function ApplicationScreen() {
         </>
       ) : (
         <Card style={styles.card}>
-          <Text style={styles.cardTitle}>{application && application.category_ids.length > 0 ? 'Editar postulación' : 'Cuéntanos sobre ti'}</Text>
-          {!application || application.category_ids.length === 0 ? (
+          <Text style={styles.cardTitle}>{application && hasDetails(application) ? 'Editar postulación' : 'Cuéntanos sobre ti'}</Text>
+          {!application || !hasDetails(application) ? (
             <Text style={styles.help}>
               Un operador de Xpertos revisará tu información y tus documentos. Si te aprueban, podrás recibir servicios asignados.
             </Text>
           ) : null}
-          <Input label="Teléfono" value={form.phone} onChangeText={(phone) => setForm((f) => ({ ...f, phone }))} keyboardType="phone-pad" />
-          <Input label="Ciudad" value={form.city} onChangeText={(city) => setForm((f) => ({ ...f, city }))} placeholder="Bogotá" />
+          <Input
+            label="Celular"
+            value={form.phone}
+            onChangeText={(phone) => setForm((f) => ({ ...f, phone: phone.replace(/[^\d\s+-]/g, '') }))}
+            keyboardType="phone-pad"
+            placeholder="300 123 4567"
+          />
           <Select
-            label="Categorías en las que trabajas"
-            multiple
-            options={categoryOptions}
-            value={form.categoryIds}
-            onChange={(categoryIds) => setForm((f) => ({ ...f, categoryIds }))}
-            placeholder="Selecciona una o varias"
+            label="Departamento"
+            placeholder="Elige tu departamento"
+            options={departments.map((d) => ({ value: d.code, label: d.name }))}
+            value={form.departmentCode}
+            onChange={(departmentCode) =>
+              setForm((f) => (departmentCode === f.departmentCode ? f : { ...f, departmentCode, municipalityCode: null }))
+            }
           />
-          <Input
-            label="Años de experiencia"
-            value={form.experienceYears}
-            onChangeText={(experienceYears) => setForm((f) => ({ ...f, experienceYears: experienceYears.replace(/[^0-9]/g, '') }))}
-            keyboardType="number-pad"
-            placeholder="5"
+          <Select
+            label="Municipio"
+            placeholder={form.departmentCode ? 'Elige tu municipio' : 'Primero elige el departamento'}
+            options={municipalities.map((m) => ({ value: m.code, label: m.name }))}
+            value={form.municipalityCode}
+            onChange={(municipalityCode) => setForm((f) => ({ ...f, municipalityCode }))}
+            disabled={!form.departmentCode}
           />
-          <Input
-            label="Reseña de tu experiencia"
-            value={form.bio}
-            onChangeText={(bio) => setForm((f) => ({ ...f, bio }))}
-            multiline
-            placeholder="Trabajos que has realizado, certificaciones, herramientas, etc."
+          <Select
+            label="¿Cuál es tu ocupación?"
+            placeholder="Elige tu ocupación"
+            options={occupations.map((o) => ({ value: o.code, label: o.name }))}
+            value={form.occupationCode}
+            onChange={(occupationCode) => setForm((f) => ({ ...f, occupationCode }))}
           />
+          <Text style={styles.help}>
+            Al enviar aceptas los{' '}
+            <Text style={styles.link} accessibilityRole="link" onPress={() => Linking.openURL(TERMS_URL)}>
+              términos y condiciones
+            </Text>{' '}
+            de Xpertos, incluida la comisión del 5 % de tu cotización por uso de la plataforma.
+          </Text>
           <Button title={application ? 'Guardar cambios' : 'Enviar postulación'} onPress={submit} loading={saving} />
-          {application && application.category_ids.length > 0 ? <Button title="Cancelar" variant="ghost" onPress={() => setEditing(false)} /> : null}
+          {application && hasDetails(application) ? <Button title="Cancelar" variant="ghost" onPress={() => setEditing(false)} /> : null}
         </Card>
       )}
     </Screen>
@@ -550,6 +602,7 @@ const styles = StyleSheet.create({
   statusRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
   help: { fontSize: 14, color: colors.textMuted, lineHeight: 20 },
   muted: { fontSize: 14, color: colors.textMuted, fontStyle: 'italic' },
+  link: { color: colors.primary, fontWeight: '600', textDecorationLine: 'underline' },
   docRow: {
     flexDirection: 'row',
     alignItems: 'center',
