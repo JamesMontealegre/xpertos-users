@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+import { Link, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -12,6 +12,8 @@ import { colors, spacing } from '@/constants/theme';
 import { supabase, translateAuthError } from '@/lib/supabase';
 
 export default function LoginScreen() {
+  // Se conserva al pasar al registro (viene de "Solicitar un servicio").
+  const { next } = useLocalSearchParams<{ next?: string }>();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError, errorSeq] = useErrorState();
@@ -66,7 +68,7 @@ export default function LoginScreen() {
           <Button title="Ingresar" onPress={submit} loading={loading} />
           <Text style={styles.footer}>
             ¿Aún no tienes cuenta?{' '}
-            <Link href="/(auth)/register" style={styles.link}>
+            <Link href={{ pathname: '/(auth)/register', params: next ? { next } : {} }} style={styles.link}>
               Regístrate
             </Link>
           </Text>

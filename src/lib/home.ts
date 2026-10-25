@@ -19,3 +19,12 @@ export function homeFor(profile: Profile, isApplicant: boolean): Href {
       return isApplicant ? '/(applicant)/application' : '/(client)';
   }
 }
+
+/** `?next=nuevo` en el ingreso o el registro (viene de "Solicitar un servicio"): el cliente llega a "Nuevo servicio". */
+export const NEXT_NEW_SERVICE = 'nuevo';
+
+/** A dónde ir al tener sesión desde el ingreso o el registro: "Nuevo servicio" si venía a pedirlo, si no su inicio. */
+export function afterAuthHref(profile: Profile, isApplicant: boolean, requestingService: boolean): Href {
+  if (requestingService && profile.role === 'client' && !isApplicant) return '/(client)/new';
+  return homeFor(profile, isApplicant);
+}

@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+import { Link, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 
@@ -40,6 +40,8 @@ function validate(v: Values): Partial<Record<Field, string>> {
 }
 
 export default function RegisterScreen() {
+  // Se conserva al pasar al ingreso (viene de "Solicitar un servicio").
+  const { next } = useLocalSearchParams<{ next?: string }>();
   const [values, setValues] = useState<Values>({ fullName: '', email: '', phone: '', city: '', password: '', confirm: '' });
   // Los errores de un campo se muestran al salir de él o al intentar crear la cuenta.
   const [touched, setTouched] = useState<Partial<Record<Field, boolean>>>({});
@@ -129,7 +131,7 @@ export default function RegisterScreen() {
           <Button title="Crear cuenta" onPress={submit} loading={loading} />
           <Text style={styles.footer}>
             ¿Ya tienes cuenta?{' '}
-            <Link href="/(auth)/login" style={styles.link}>
+            <Link href={{ pathname: '/(auth)/login', params: next ? { next } : {} }} style={styles.link}>
               Ingresa
             </Link>
           </Text>
