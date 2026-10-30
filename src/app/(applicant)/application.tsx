@@ -39,7 +39,7 @@ type FormState = {
   phone: string;
   departmentCode: string | null;
   municipalityCode: string | null;
-  occupationCode: string | null;
+  occupationCodes: string[];
 };
 
 const TERMS_URL = `${process.env.EXPO_PUBLIC_SITE_URL ?? 'https://xpertos.com.co'}/terminos`;
@@ -60,7 +60,7 @@ export default function ApplicationScreen() {
     phone: profile?.phone ?? '',
     departmentCode: profile?.department_code ?? '76',
     municipalityCode: profile?.municipality_code ?? null,
-    occupationCode: null,
+    occupationCodes: [],
   });
   const [docKind, setDocKind] = useState<Enums<'document_kind'> | null>(null);
   const [error, setError, errorSeq] = useErrorState();
@@ -136,7 +136,7 @@ export default function ApplicationScreen() {
         phone: data.phone ?? '',
         departmentCode: data.department_code ?? f.departmentCode,
         municipalityCode: data.municipality_code ?? (data.department_code ? null : f.municipalityCode),
-        occupationCode: data.occupation_code,
+        occupationCodes: data.occupation_codes.length > 0 ? data.occupation_codes : data.occupation_code ? [data.occupation_code] : [],
       }));
       const { data: docs } = await supabase
         .from('application_documents')
@@ -174,7 +174,7 @@ export default function ApplicationScreen() {
     if (phone) return phone;
     if (!form.departmentCode) return 'Elige tu departamento.';
     if (!form.municipalityCode || !form.municipalityCode.startsWith(form.departmentCode)) return 'Elige tu municipio.';
-    if (!form.occupationCode) return 'Elige tu ocupación.';
+    if (form.occupationCodes.length === 0) return 'Elige al menos una ocupación.';
     return null;
   };
 
@@ -196,7 +196,7 @@ export default function ApplicationScreen() {
     const payload = {
       phone: normalizePhone(form.phone),
       municipality_code: form.municipalityCode,
-      occupation_code: form.occupationCode,
+      occupation_codes: form.occupationCodes,
     };
     const result = application
       ? await supabase.from('expert_applications').update(payload).eq('id', application.id)
@@ -347,7 +347,17 @@ export default function ApplicationScreen() {
 
   if (application === undefined) return <Loading />;
 
-  const occupationName = occupations.find((o) => o.code === application?.occupation_code)?.name ?? null;
+  const applicationOccupations =
+    application && application.occupation_codes.length > 0
+      ? application.occupation_codes
+      : application?.occupation_code
+        ? [application.occupation_code]
+        : [];
+  const occupationNames =
+    applicationOccupations
+      .map((code) => occupations.find((o) => o.code === code)?.name)
+      .filter(Boolean)
+      .join(', ') || null;
   const departmentName = departments.find((d) => d.code === application?.department_code)?.name ?? null;
   const canEdit = !application || application.status === 'pending' || application.status === 'needs_info';
   const daysLeft = daysUntil(application?.expires_at);
@@ -402,7 +412,7 @@ export default function ApplicationScreen() {
               <KeyValue label="Notas del operador" value={application.admin_notes} />
             ) : null}
             {application.occupation_code ? (
-              <KeyValue label="Ocupación" value={occupationName} />
+              <KeyValue label={applicationOccupations.length > 1 ? 'Ocupaciones' : 'Ocupación'} value={occupationNames} />
             ) : (
               <KeyValue
                 label="Categorías"
@@ -575,11 +585,12 @@ export default function ApplicationScreen() {
             disabled={!form.departmentCode}
           />
           <Select
-            label="¿Cuál es tu ocupación?"
-            placeholder="Elige tu ocupación"
+            multiple
+            label="¿Cuáles son tus ocupaciones?"
+            placeholder="Elige una o varias"
             options={occupations.map((o) => ({ value: o.code, label: o.name }))}
-            value={form.occupationCode}
-            onChange={(occupationCode) => setForm((f) => ({ ...f, occupationCode }))}
+            value={form.occupationCodes}
+            onChange={(occupationCodes) => setForm((f) => ({ ...f, occupationCodes }))}
           />
           <Text style={styles.help}>
             Al enviar aceptas los{' '}
