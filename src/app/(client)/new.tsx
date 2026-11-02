@@ -11,6 +11,7 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { ErrorBanner, InfoBanner, Screen, useErrorState } from '@/components/ui/screen';
 import { Select } from '@/components/ui/select';
 import { Text } from '@/components/ui/text';
+import { TimeSelect, timeLabel } from '@/components/ui/time-select';
 import { colors, radius, spacing } from '@/constants/theme';
 import type { Tables } from '@/lib/database.types';
 import { formatPlainDate, isValidDate, isValidTime, todayCO } from '@/lib/format';
@@ -20,19 +21,6 @@ import { useAuth } from '@/providers/auth';
 import { useFeedback } from '@/providers/feedback';
 
 type Slot = { date: string; from: string; to: string };
-
-// Horas para elegir en la franja: cada media hora de 6:00 a. m. a 9:00 p. m.
-const TIMES = Array.from({ length: 31 }, (_, i) => {
-  const minutes = 6 * 60 + i * 30;
-  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
-});
-const timeLabel = (value: string) => {
-  const [h, m] = value.split(':').map(Number);
-  const suffix = h < 12 ? 'a. m.' : 'p. m.';
-  return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, '0')} ${suffix}`;
-};
-const timeOptions = (after?: string) =>
-  TIMES.filter((t) => !after || t > after).map((t) => ({ value: t, label: timeLabel(t) }));
 type Photo = { uri: string; mimeType: string; name: string };
 
 const emptyForm = {
@@ -222,21 +210,21 @@ export default function NewServiceScreen() {
             containerStyle={styles.slotDate}
           />
           <View style={styles.slotTime}>
-            <Select
+            <TimeSelect
               label="Desde"
               placeholder="Inicio"
-              options={timeOptions().slice(0, -1)}
-              value={slotDraft.from || null}
+              before="21:00"
+              value={slotDraft.from}
               // Si la hora final ya no queda después, se borra para elegirla de nuevo.
               onChange={(from) => setSlotDraft((s) => ({ ...s, from, to: s.to && s.to <= from ? '' : s.to }))}
             />
           </View>
           <View style={styles.slotTime}>
-            <Select
+            <TimeSelect
               label="Hasta"
               placeholder="Fin"
-              options={timeOptions(slotDraft.from || undefined)}
-              value={slotDraft.to || null}
+              after={slotDraft.from || undefined}
+              value={slotDraft.to}
               onChange={(to) => setSlotDraft((s) => ({ ...s, to }))}
             />
           </View>

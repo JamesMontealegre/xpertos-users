@@ -5,14 +5,13 @@ import { Pressable, StyleSheet, Switch, View } from 'react-native';
 
 import { Button } from '@/components/ui/button';
 import { Card, SectionTitle } from '@/components/ui/card';
-import { TimeInput } from '@/components/ui/masked-input';
 import { ErrorBanner, Loading, Screen, useErrorState } from '@/components/ui/screen';
 import { Select } from '@/components/ui/select';
 import { Text } from '@/components/ui/text';
+import { TimeSelect, timeLabel } from '@/components/ui/time-select';
 import { colors, radius, spacing } from '@/constants/theme';
 import type { Tables } from '@/lib/database.types';
 import { formatTime, isValidTime } from '@/lib/format';
-import { completeTime } from '@/lib/masks';
 import { weekdays } from '@/lib/labels';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/providers/auth';
@@ -83,10 +82,8 @@ export default function AvailabilityScreen() {
   const addSlot = async () => {
     if (!session) return;
     setError(null);
-    // Por si se toca "Agregar franja" sin salir del campo de la hora ("8" → "08:00").
-    const start = completeTime(draft.start);
-    const end = completeTime(draft.end);
-    if (!isValidTime(start) || !isValidTime(end)) return setError('Las horas deben tener el formato HH:mm (p. ej. 08:00).');
+    const { start, end } = draft;
+    if (!isValidTime(start) || !isValidTime(end)) return setError('Elige la hora de inicio y la de fin.');
     if (start >= end) return setError('La hora final debe ser posterior a la inicial.');
     setSaving(true);
     const { error: insertError } = await supabase.from('expert_availability').insert({
@@ -97,7 +94,7 @@ export default function AvailabilityScreen() {
     });
     setSaving(false);
     if (insertError) return setError(`No se pudo agregar la franja: ${insertError.message}`);
-    toast(`Franja agregada: ${weekdays[Number(draft.weekday)]} ${start} – ${end}.`, 'success');
+    toast(`Franja agregada: ${weekdays[Number(draft.weekday)]} ${timeLabel(start)} – ${timeLabel(end)}.`, 'success');
     setDraft((d) => ({ ...d, start: '', end: '' }));
     await load();
   };
@@ -106,7 +103,7 @@ export default function AvailabilityScreen() {
     setError(null);
     const ok = await confirm({
       title: 'Eliminar la franja',
-      message: `${weekdays[slot.weekday]} · ${formatTime(slot.start_time)} – ${formatTime(slot.end_time)}`,
+      message: `${weekdays[slot.weekday]} · ${timeLabel(formatTime(slot.start_time))} – ${timeLabel(formatTime(slot.end_time))}`,
       confirmLabel: 'Eliminar',
       destructive: true,
     });
@@ -146,7 +143,7 @@ export default function AvailabilityScreen() {
             <View key={slot.id} style={styles.slotRow}>
               <Ionicons name="time-outline" size={18} color={colors.primary} />
               <Text style={styles.slotText}>
-                {weekdays[slot.weekday]} · {formatTime(slot.start_time)} – {formatTime(slot.end_time)}
+                {weekdays[slot.weekday]} · {timeLabel(formatTime(slot.start_time))} – {timeLabel(formatTime(slot.end_time))}
               </Text>
               <Pressable accessibilityRole="button" accessibilityLabel="Eliminar franja" onPress={() => removeSlot(slot)} hitSlop={8}>
                 <Ionicons name="trash-outline" size={18} color={colors.danger} />
@@ -160,20 +157,28 @@ export default function AvailabilityScreen() {
       <Card style={styles.card}>
         <Select label="Día" options={weekdayOptions} value={draft.weekday} onChange={(weekday) => setDraft((d) => ({ ...d, weekday }))} />
         <View style={styles.timeRow}>
-          <TimeInput
-            label="Desde"
-            placeholder="08:00"
-            value={draft.start}
-            onChangeText={(start) => setDraft((d) => ({ ...d, start }))}
-            containerStyle={styles.timeInput}
-          />
-          <TimeInput
-            label="Hasta"
-            placeholder="17:00"
-            value={draft.end}
-            onChangeText={(end) => setDraft((d) => ({ ...d, end }))}
-            containerStyle={styles.timeInput}
-          />
+          <View style={styles.timeInput}>
+            <TimeSelect
+              label="Desde"
+              placeholder="Inicio"
+              from="05:00"
+              to="22:00"
+              before="22:00"
+              value={draft.start}
+              onChange={(start) => setDraft((d) => ({ ...d, start, end: d.end && d.end <= start ? '' : d.end }))}
+            />
+          </View>
+          <View style={styles.timeInput}>
+            <TimeSelect
+              label="Hasta"
+              placeholder="Fin"
+              from="05:00"
+              to="22:00"
+              after={draft.start || undefined}
+              value={draft.end}
+              onChange={(end) => setDraft((d) => ({ ...d, end }))}
+            />
+          </View>
         </View>
         <Button title="Agregar franja" variant="outline" onPress={addSlot} loading={saving} />
       </Card>

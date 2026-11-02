@@ -9,9 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Card, KeyValue, SectionTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
-import { TimeInput } from '@/components/ui/masked-input';
 import { ErrorBanner, InfoBanner, Loading, Screen, useErrorState } from '@/components/ui/screen';
 import { Text } from '@/components/ui/text';
+import { TimeSelect, timeLabel } from '@/components/ui/time-select';
 import { colors, spacing } from '@/constants/theme';
 import type { Tables } from '@/lib/database.types';
 import { capitalizeFirst, formatPlainDate, formatTime, isValidDate, isValidTime, nowTimeCO, todayCO } from '@/lib/format';
@@ -206,11 +206,31 @@ export default function WorkDayScreen() {
           <>
             <View style={styles.timeRow}>
               <View style={styles.timeCol}>
-                <TimeInput label="Hora de ingreso" value={checkIn} onChangeText={setCheckIn} placeholder="08:00" />
+                <TimeSelect
+                  label="Hora de ingreso"
+                  placeholder="Elige la hora"
+                  from="05:00"
+                  to="22:00"
+                  step={15}
+                  value={checkIn}
+                  onChange={(value) => {
+                    setCheckIn(value);
+                    if (checkOut && checkOut <= value) setCheckOut('');
+                  }}
+                />
                 <Button title="Ahora" variant="ghost" size="sm" onPress={() => setCheckIn(nowTimeCO())} />
               </View>
               <View style={styles.timeCol}>
-                <TimeInput label="Hora de salida" value={checkOut} onChangeText={setCheckOut} placeholder="17:00" />
+                <TimeSelect
+                  label="Hora de salida"
+                  placeholder="Elige la hora"
+                  from="05:00"
+                  to="23:45"
+                  step={15}
+                  after={checkIn || undefined}
+                  value={checkOut}
+                  onChange={setCheckOut}
+                />
                 <Button title="Ahora" variant="ghost" size="sm" onPress={() => setCheckOut(nowTimeCO())} />
               </View>
             </View>
@@ -221,10 +241,10 @@ export default function WorkDayScreen() {
           <>
             <View style={styles.timeRow}>
               <View style={styles.timeCol}>
-                <KeyValue label="Hora de ingreso" value={log.check_in ? formatTime(log.check_in) : null} />
+                <KeyValue label="Hora de ingreso" value={log.check_in ? timeLabel(formatTime(log.check_in)) : null} />
               </View>
               <View style={styles.timeCol}>
-                <KeyValue label="Hora de salida" value={log.check_out ? formatTime(log.check_out) : null} />
+                <KeyValue label="Hora de salida" value={log.check_out ? timeLabel(formatTime(log.check_out)) : null} />
               </View>
             </View>
             <KeyValue label="Notas" value={log.notes} />
