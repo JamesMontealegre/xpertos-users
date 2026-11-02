@@ -7,20 +7,32 @@ import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { Button } from '@/components/ui/button';
 import { Card, SectionTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { DateInput, TimeInput } from '@/components/ui/masked-input';
+import { DatePicker } from '@/components/ui/date-picker';
 import { ErrorBanner, InfoBanner, Screen, useErrorState } from '@/components/ui/screen';
 import { Select } from '@/components/ui/select';
 import { Text } from '@/components/ui/text';
 import { colors, radius, spacing } from '@/constants/theme';
 import type { Tables } from '@/lib/database.types';
-import { formatPlainDate, isValidDate, isValidTime } from '@/lib/format';
-import { completeTime } from '@/lib/masks';
+import { formatPlainDate, isValidDate, isValidTime, todayCO } from '@/lib/format';
 import { supabase } from '@/lib/supabase';
 import { extensionForMime, timestamp, uploadFile } from '@/lib/upload';
 import { useAuth } from '@/providers/auth';
 import { useFeedback } from '@/providers/feedback';
 
 type Slot = { date: string; from: string; to: string };
+
+// Horas para elegir en la franja: cada media hora de 6:00 a. m. a 9:00 p. m.
+const TIMES = Array.from({ length: 31 }, (_, i) => {
+  const minutes = 6 * 60 + i * 30;
+  return `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+});
+const timeLabel = (value: string) => {
+  const [h, m] = value.split(':').map(Number);
+  const suffix = h < 12 ? 'a. m.' : 'p. m.';
+  return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, '0')} ${suffix}`;
+};
+const timeOptions = (after?: string) =>
+  TIMES.filter((t) => !after || t > after).map((t) => ({ value: t, label: timeLabel(t) }));
 type Photo = { uri: string; mimeType: string; name: string };
 
 const emptyForm = {
@@ -58,14 +70,15 @@ export default function NewServiceScreen() {
 
   const addSlot = () => {
     setSlotError(null);
-    // Por si se toca "Agregar franja" sin salir del campo de la hora ("8" → "08:00").
-    const date = slotDraft.date;
-    const from = completeTime(slotDraft.from);
-    const to = completeTime(slotDraft.to);
-    if (!isValidDate(date)) return setSlotError('La fecha debe tener el formato AAAA-MM-DD (p. ej. 2026-10-20).');
-    if (!isValidTime(from) || !isValidTime(to)) return setSlotError('Las horas deben tener el formato HH:mm (p. ej. 08:00).');
+    const { date, from, to } = slotDraft;
+    if (!isValidDate(date)) return setSlotError('Elige el día en el calendario.');
+    if (date < todayCO()) return setSlotError('Elige un día desde hoy en adelante.');
+    if (!isValidTime(from) || !isValidTime(to)) return setSlotError('Elige la hora de inicio y la de fin.');
     if (from >= to) return setSlotError('La hora final debe ser posterior a la inicial.');
-    setSlots((prev) => [...prev, { date, from, to }]);
+    if (slots.some((s) => s.date === date && from < s.to && s.from < to)) {
+      return setSlotError('Esa franja se cruza con otra que ya agregaste para ese día.');
+    }
+    setSlots((prev) => [...prev, { date, from, to }].sort((a, b) => a.date.localeCompare(b.date) || a.from.localeCompare(b.from)));
     setSlotDraft({ date: '', from: '', to: '' });
   };
 
@@ -184,12 +197,12 @@ export default function NewServiceScreen() {
 
       <SectionTitle>Disponibilidad</SectionTitle>
       <Card style={styles.card}>
-        <Text style={styles.help}>Agrega los días y horas en que puedes recibir al experto.</Text>
+        <Text style={styles.help}>Elige el día en el calendario y el rango de horas en que puedes recibir al experto. Puedes agregar varias franjas.</Text>
         {slots.map((slot, idx) => (
           <View key={`${slot.date}-${slot.from}-${idx}`} style={styles.slotRow}>
             <Ionicons name="time-outline" size={18} color={colors.primary} />
             <Text style={styles.slotText}>
-              {formatPlainDate(slot.date)} · {slot.from} – {slot.to}
+              {formatPlainDate(slot.date)} · {timeLabel(slot.from)} – {timeLabel(slot.to)}
             </Text>
             <Pressable
               accessibilityRole="button"
@@ -201,26 +214,32 @@ export default function NewServiceScreen() {
           </View>
         ))}
         <View style={styles.slotInputs}>
-          <DateInput
-            label="Fecha"
+          <DatePicker
+            label="Día"
             value={slotDraft.date}
-            onChangeText={(date) => setSlotDraft((s) => ({ ...s, date }))}
+            minDate={todayCO()}
+            onChange={(date) => setSlotDraft((s) => ({ ...s, date }))}
             containerStyle={styles.slotDate}
           />
-          <TimeInput
-            label="Desde"
-            placeholder="08:00"
-            value={slotDraft.from}
-            onChangeText={(from) => setSlotDraft((s) => ({ ...s, from }))}
-            containerStyle={styles.slotTime}
-          />
-          <TimeInput
-            label="Hasta"
-            placeholder="12:00"
-            value={slotDraft.to}
-            onChangeText={(to) => setSlotDraft((s) => ({ ...s, to }))}
-            containerStyle={styles.slotTime}
-          />
+          <View style={styles.slotTime}>
+            <Select
+              label="Desde"
+              placeholder="Inicio"
+              options={timeOptions().slice(0, -1)}
+              value={slotDraft.from || null}
+              // Si la hora final ya no queda después, se borra para elegirla de nuevo.
+              onChange={(from) => setSlotDraft((s) => ({ ...s, from, to: s.to && s.to <= from ? '' : s.to }))}
+            />
+          </View>
+          <View style={styles.slotTime}>
+            <Select
+              label="Hasta"
+              placeholder="Fin"
+              options={timeOptions(slotDraft.from || undefined)}
+              value={slotDraft.to || null}
+              onChange={(to) => setSlotDraft((s) => ({ ...s, to }))}
+            />
+          </View>
         </View>
         {slotError ? <Text style={styles.slotError}>{slotError}</Text> : null}
         <Button title="Agregar franja" variant="outline" size="sm" onPress={addSlot} />
@@ -267,8 +286,8 @@ const styles = StyleSheet.create({
   },
   slotText: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '600' },
   slotInputs: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' },
-  slotDate: { flexGrow: 2, flexBasis: 150 },
-  slotTime: { flexGrow: 1, flexBasis: 90 },
+  slotDate: { flexGrow: 1, flexBasis: '100%' },
+  slotTime: { flexGrow: 1, flexBasis: 120 },
   slotError: { color: colors.danger, fontSize: 13 },
   photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   photoWrap: { position: 'relative' },
