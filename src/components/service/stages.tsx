@@ -1,5 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
+import { router } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
 import { useEffect, useState } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 
@@ -139,13 +141,27 @@ export function StagesSection({ service, stages, payments, accounts, isClient, u
     });
     if (!ok) return;
     setPaying(true);
-    const { data, error: invokeError } = await supabase.functions.invoke('wompi-checkout', { body: { service_id: service.id } });
+    const native = Platform.OS !== 'web';
+    const { data, error: invokeError } = await supabase.functions.invoke('wompi-checkout', {
+      body: { service_id: service.id, ...(native ? { return_to: 'app' } : {}) },
+    });
     setPaying(false);
     if (invokeError) return setError(await invokeErrorMessage(invokeError, 'No pudimos abrir el pago en línea. Intenta de nuevo.'));
-    const url = (data as { url?: string } | null)?.url;
-    if (!url) return setError('No pudimos abrir el pago en línea. Intenta de nuevo.');
-    if (Platform.OS === 'web' && typeof window !== 'undefined') window.location.assign(url);
-    else await Linking.openURL(url);
+    const { url, reference } = (data as { url?: string; reference?: string } | null) ?? {};
+    if (!url || !reference) return setError('No pudimos abrir el pago en línea. Intenta de nuevo.');
+    if (!native) {
+      if (typeof window !== 'undefined') window.location.assign(url);
+      return;
+    }
+    // En el celular el checkout se abre en un navegador dentro de la app. Al terminar, la página de regreso abre
+    // xpertos://pago/<ref> y el navegador se cierra solo; si el usuario lo cierra antes, igual consultamos el pago.
+    const result = await WebBrowser.openAuthSessionAsync(url, 'xpertos://pago');
+    let transactionId: string | undefined;
+    if (result.type === 'success') {
+      const match = /[?&]id=([^&#]+)/.exec(result.url);
+      transactionId = match ? decodeURIComponent(match[1]) : undefined;
+    }
+    router.push({ pathname: '/pago/[ref]', params: transactionId ? { ref: reference, id: transactionId } : { ref: reference } });
   };
 
   const registerProof = async (file: LocalFile) => {

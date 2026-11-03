@@ -14,7 +14,7 @@ import { APP_VERSION } from '@/lib/version';
 import { useAuth } from '@/providers/auth';
 import { useFeedback } from '@/providers/feedback';
 
-/** Formulario de datos básicos del perfil + cerrar sesión. Compartido por cliente, aspirante y experto. */
+/** Formulario de datos básicos del perfil + cerrar sesión y eliminar la cuenta. Compartido por cliente, aspirante y experto. */
 export function ProfileForm() {
   const { profile, session, refreshProfile, signOut } = useAuth();
   const [fullName, setFullName] = useState(profile?.full_name ?? '');
@@ -48,6 +48,36 @@ export function ProfileForm() {
     toast('Perfil actualizado.', 'success');
   };
 
+  const [deleting, setDeleting] = useState(false);
+
+  // Lo exigen App Store y Google Play: la cuenta se elimina desde la app (Edge Function delete-account).
+  const deleteAccount = async () => {
+    setError(null);
+    const ok = await confirm({
+      title: 'Eliminar mi cuenta',
+      message:
+        'Borraremos tus datos personales y no podrás volver a ingresar. Los contratos y pagos de tus servicios se conservan por obligación legal. Esta acción no se puede deshacer.',
+      confirmLabel: 'Eliminar mi cuenta',
+      destructive: true,
+    });
+    if (!ok) return;
+    setDeleting(true);
+    const { error: invokeError } = await supabase.functions.invoke('delete-account', { body: {} });
+    setDeleting(false);
+    if (invokeError) {
+      let message = 'No pudimos eliminar tu cuenta. Intenta de nuevo.';
+      try {
+        const body = await (invokeError as { context?: Response }).context?.json();
+        if (body?.error) message = String(body.error);
+      } catch {
+        // sin cuerpo legible
+      }
+      return setError(message);
+    }
+    toast('Tu cuenta fue eliminada.', 'success');
+    await signOut();
+  };
+
   const confirmSignOut = async () => {
     const ok = await confirm({ title: 'Cerrar sesión', message: 'Para volver a entrar necesitarás tu correo y contraseña.', confirmLabel: 'Cerrar sesión', destructive: true });
     if (ok) await signOut();
@@ -75,6 +105,9 @@ export function ProfileForm() {
         <Button title="Cambiar de vista (superadmin)" variant="outline" onPress={() => router.replace('/admin')} />
       ) : null}
       <Button title="Cerrar sesión" variant="danger" onPress={confirmSignOut} />
+      {profile?.role !== 'admin' ? (
+        <Button title="Eliminar mi cuenta" variant="ghost" onPress={deleteAccount} loading={deleting} />
+      ) : null}
       <Text style={styles.version}>Versión {APP_VERSION}</Text>
     </>
   );

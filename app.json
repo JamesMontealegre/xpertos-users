@@ -8,12 +8,15 @@
     "scheme": "xpertos",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true,
+      "bundleIdentifier": "co.com.xpertos.app",
+      "supportsTablet": false,
       "infoPlist": {
-        "NSPhotoLibraryUsageDescription": "Xpertos necesita acceso a tus fotos para adjuntarlas a tus solicitudes de servicio y comprobantes de pago."
+        "NSPhotoLibraryUsageDescription": "Xpertos necesita acceso a tus fotos para adjuntarlas a tus solicitudes de servicio y comprobantes de pago.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
+      "package": "co.com.xpertos.app",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
