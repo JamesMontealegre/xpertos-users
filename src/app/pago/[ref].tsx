@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import { Brand } from '@/components/brand';
 import { Button } from '@/components/ui/button';
@@ -24,9 +24,38 @@ const POLL_LIMIT_MS = 120_000;
  * Regreso desde Wompi: muestra el resultado del pago en línea. Mientras siga pendiente, pide al servidor verificar la
  * transacción en Wompi (la registra igual que el webhook, por si este se demora) y vuelve a consultar el intento.
  */
+/**
+ * Pago iniciado desde la app del celular (`?app=1`): Wompi vuelve a esta página web dentro del navegador de la app, y
+ * desde aquí se regresa a la app con xpertos://pago/<ref>, que cierra el navegador y muestra el resultado allá.
+ */
+function BackToApp({ reference, transactionId }: { reference: string; transactionId?: string }) {
+  const appUrl = `xpertos://pago/${encodeURIComponent(reference)}${transactionId ? `?id=${encodeURIComponent(transactionId)}` : ''}`;
+  useEffect(() => {
+    window.location.href = appUrl;
+  }, [appUrl]);
+  return (
+    <Screen>
+      <Stack.Screen options={{ headerShown: false, title: 'Pago en línea' }} />
+      <View style={styles.wrapper}>
+        <Brand />
+        <Card style={styles.card}>
+          <Ionicons name="phone-portrait-outline" size={44} color={colors.primary} />
+          <Text style={styles.title}>Volviendo a la app…</Text>
+          <Text style={styles.help}>Si no vuelves automáticamente, toca el botón o cierra esta ventana.</Text>
+          <Button title="Volver a Xpertos" onPress={() => (window.location.href = appUrl)} />
+        </Card>
+      </View>
+    </Screen>
+  );
+}
+
 export default function PaymentResultScreen() {
-  // Wompi agrega `id` (la transacción) al volver del checkout.
-  const { ref, id } = useLocalSearchParams<{ ref: string; id?: string }>();
+  const { ref, id, app } = useLocalSearchParams<{ ref: string; id?: string; app?: string }>();
+  if (Platform.OS === 'web' && app === '1' && ref) return <BackToApp reference={ref} transactionId={id} />;
+  return <PaymentResult reference={ref} transactionId={id} />;
+}
+
+function PaymentResult({ reference: ref, transactionId: id }: { reference: string; transactionId?: string }) {
   const { session } = useAuth();
   const [attempt, setAttempt] = useState<Attempt | null | undefined>(undefined);
   const [timedOut, setTimedOut] = useState(false);
